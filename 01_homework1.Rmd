@@ -1,0 +1,683 @@
+---
+title: "01_homework1"
+author: "Randy"
+date: "1/29/2021"
+output:
+  word_document: 
+    reference_docx: template.docx
+---
+# BIOS7721 Homework1
+
+```{r package, include=FALSE}
+## packages for data manipulation
+library(tidyverse)
+library(janitor)
+library(magrittr)
+
+## packages for graphs and plots
+library(ggplot2)
+library(ggfortify)
+
+## packages for survival analysis
+library(survminer)
+library(survival)
+library(JM)
+
+## packages for regression and tables
+library(broom.mixed)
+library(gtsummary)
+
+## software information
+sessionInfo()
+R.Version()
+```
+
+```{r setup, include=FALSE}
+## package_name::function_name
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  cache = TRUE)
+```
+
+```{r directory, include=FALSE}
+## not necessary if here::here() being used
+# getwd()
+# setwd("C:/Users/Goodgolden5/Desktop/BIOS7720")
+```
+
+## Question1 longitudinal analysis
+### a. the number of measurements varies
+* calculate each subject measurement number
+* distribution of aortic gradient
+* why consider square root transformation 
+* create sqrt.aort.gard column for transformation
+
+The dataset is not well balanced for each individual. \
+The measurement times are calculated and presented in *plot_count*.\
+The distribution of aortic gradient is presented in *plot_hist_ag*.\
+According to the *plot_hist_ag*, the distribution of aortic gradient is highly right-skewed.\
+To balance the long right tail, the square root transformation is applied. 
+After the transformation, the sqrt aortic gradient looks more similar to normal distribution.
+```{r}
+aort <- here::here("aort.csv") %>% 
+  read_csv() %>%
+  janitor::clean_names()
+
+## to count each id's measurement
+aort_count <- aort %>% 
+  group_by(id) %>%
+  count() 
+# aort_count
+
+## to get the frequency of measurement
+aort_recount <-
+  aort_count %>%
+  group_by(n) %>%
+  count()
+# aort_recount
+```
+
+```{r fig.height=3, fig.width=4}
+## plot for measurement frequency
+plot_count <- 
+  aort_count %>%
+  ggplot(aes(n, fill = "aort")) +
+  geom_histogram(binwidth = 1,
+                 fill = "grey50", 
+                 color = "grey") +
+  theme(legend.position = "none") +
+  theme_bw()
+plot_count
+
+``` 
+
+
+```{r fig.height=3, fig.width=4}
+## plot for the ag distribution
+plot_hist_ag <- aort %>%
+  ggplot(aes(ao_gradient)) +
+  geom_histogram(aes(y = ..density..),
+                 fill = "grey70",
+                 color = "grey50") +
+  geom_density(alpha = 0.1, 
+               size = 1) +
+  theme(legend.position="none") +
+  theme_bw()
+plot_hist_ag
+```
+
+
+
+```{r fig.height=3, fig.width=4}
+## to add extra sqrt_aort_grad
+aort1 <- aort %>%
+  mutate(sqrt_aort_grad = sqrt(ao_gradient),
+         event = as.factor(event),
+         id= as.factor(id))
+
+## after sqrt transformation
+plot_hist_sag <- aort1 %>%
+  ggplot(aes(sqrt_aort_grad)) +
+  geom_histogram(aes(y = ..density..),
+                 fill = "grey70",
+                 color = "grey50") +
+  geom_density(alpha = 0.1, 
+               size = 1) +
+  theme(legend.position="none") +
+  theme_bw()
+plot_hist_sag
+```
+
+
+
+```{r}
+head(aort1, 5)
+```
+
+\newpage  
+
+### b. subset 5 subjects 
+* for with or without events
+* plot and describe observed trends
+
+The trend are affected by the samples chosen. 
+Based on these ten samples,
+the subjects without events have shorter follow-up time;
+also some of their aortic gradient level increases slower over the time, 
+but the others aortic gradient trends have no difference with the subjects suffered events during follow-up. This indicates potential informative censor or missing not at random cases.
+Both groups time trend can be approximated through linear or quadratic trend.
+
+```{r}
+set.seed(55)
+aort_live <- aort1 %>%
+  group_by(id) %>%
+  filter(event == 0) %>%
+  ## to nest the dataset 
+  ## in one cell
+  nest() %>%
+  as.tibble() %>%
+  sample_n(size = 5) %>%
+  unnest()
+
+aort_dead <- aort1 %>%
+  group_by(id) %>%
+  filter(event == 1) %>%
+  ## to nest the dataset 
+  ## in one cell
+  nest() %>%
+  as.tibble() %>%
+  sample_n(size = 5) %>%
+  unnest()
+```
+
+```{r fig.height=4, fig.width=6}
+plot_sample <- 
+  rbind(aort_dead, aort_live) %>%
+  ggplot(aes(x = time,
+             y = sqrt_aort_grad,
+             group = id,
+             linetype = id,
+             color = event)) +
+  geom_line() +
+  geom_point(aes(shape = event)) +
+  theme_bw() +
+  scale_color_manual(values = c("#1cbaa4", "#f7022a"))
+
+plot_sample
+```
+
+\newpage
+
+### c. fit a random intercept model
+* sqrt_aort_grad as outcome
+* linear effect of time
+* mean aortic gradient over time?
+* change vary be surgery?
+* variation of baseline between subject?
+* hypothesis test 
+* interpret the coefficient
+   
+According to the random intercept model (model1),
+the time has a very highly significant effect on the subject's aortic gradient level (p << 0.001).
+Hence, there is an evidence for the mean aortic fradient changing over time.\
+According to the model adjusted for operation type (model2),
+there is a very highly significant effect on the subject's aortic gradient level 
+over different operation type (p << 0.001); 
+however the time effect on different operation type are not significant (p = 0.67 > 0.05).\
+There is a variability for each subject aortic gradient level.
+```{r}
+model1 <- lme(sqrt_aort_grad ~ time,
+               random = ~1 | id,
+               data = aort1) 
+model2 <- lme(sqrt_aort_grad ~ time * type_op,
+               random = ~1 | id,
+               data = aort1) 
+
+tidy1 <- broom.mixed::tidy(model1)
+tidy2 <- broom.mixed::tidy(model2)
+
+glance1 <- broom.mixed::glance(model1)
+glance2 <- broom.mixed::glance(model2)
+# augment1 <- broom.mixed::augment(model1)
+# augment2 <- broom.mixed::augment(model2)
+```
+
+```{r}
+## effects for model1, model2
+tidy1
+tidy2
+```
+
+To see the subject individual aortic gradient variability to baseline level,
+the baseline aortic gradient level is adjusted in model3.
+According to model3, baseline aortic gradient level can significantly affect 
+the subject's future aortic gradient level. 
+These results indicate that there is a variation for baseline aortic gradient.
+After adjustment on the baseline level, the model performs better.
+```{r}
+aort2 <- aort1 %>% 
+  mutate(baseline = ifelse(time == 0, ao_gradient, NA)) %>%
+  fill(baseline) %>%
+  mutate(basesqrt = sqrt(baseline))
+
+model3 <- lme(sqrt_aort_grad ~ basesqrt + time * type_op,
+               random = ~  1 | id,
+               data = aort2)
+
+tidyf3 <- broom.mixed::tidy(model3)
+tidyr3 <- broom.mixed::tidy(model3, effects = "ran_pars", conf.int = TRUE)
+glance3 <- broom.mixed::glance(model3)
+```
+
+```{r}
+tidyf3
+tidyr3
+```
+
+As seen for the criteria comparison cross the three models,
+model3, adjusting both operation type and the baseline aortic gradients,
+performs best with lowest AIC (12748) and BIC (12793).
+
+Also based on log-likelihood, the chi-squre and pvalue calculated among nested models.
+The results indicate that the adjustment for both operation type and the baseline aortic gradients 
+can significantly improve the inference model. 
+
+For model3, there is a significant time trend for subject's aortic gradient level (p << 0.001). 
+On average, in population level, the subject's sqrt aortic gradient level increase 0.39 (95% CI: 0.38, 0.41)  unit in each year.
+Also the operation type does not significantly affect the patient's aortic gradient level (p = 0.13), and there is no significant time:operation interaction effect (p = 0.59).
+Intriguingly, the subject's baseline aortic gradient level can also affect the future (p << 0.01).
+On average, in population level, the patient, with higher baseline aortic gradient, 
+The increasing each unit of baseline sqrt aortic gradient will increase 0.76 (95% CI: 0.68, 0.84) unit in future sqrt aortic gradient level accordingly. 
+As random effects, there is a large standard deviation on sqrt aortic gradient level (sd = 0.78) on individual level. Also the random effects residual standard deviation is pretty large too. These indicate the individual level variation could not be ignored but treated as random effects individually.
+```{r}
+rbind(glance1, 
+      glance2,
+      glance3) %>%
+  rownames_to_column("model") 
+```
+
+```{r}
+#' test_lrt() is to calculate the lrt pvalue
+#'
+#' @param mod0 is the first model
+#' @param mod1 is the second model
+#' @param df can be add manually
+#' @return pvalue is the lrt pvalue
+#' @examples
+#' test_lrt(model1, model2)
+test_lrt <- function(mod0, mod1, ...){
+  A <- logLik(mod0) 
+  B <- logLik(mod1) 
+  D <- -2 * (as.numeric(A) - as.numeric(B))
+  df = abs(attributes(A)$df - attributes(B)$df)
+  pvalue <- pchisq(D, df = df, 
+                   lower.tail = FALSE)
+  return(pvalue)
+}
+
+test_lrt(model1, model2, 1)
+test_lrt(model2, model3)
+```
+
+\newpage
+
+### d. extend to random slope model
+* how many more parameters
+* outcome change over time between subject? 
+   
+Two more parameters are estimated, the estimate for random slope and its correlation matrix.
+The random slope on time has standard deviation 0.18, with mean set as zero. 
+In this case, the variability of random time slope effects among subjects cannot be ignored.
+
+After addition of random slope term the AIC decreased 884 to 11864; this indicates the variability on random time slope term for each individual.
+```{r}
+model4 <- lme(sqrt_aort_grad ~ basesqrt + time * type_op,
+               random = ~ time + 1 | id, 
+               data = aort2) 
+tidy4 <- broom.mixed::tidy(model4)
+glance4 <- broom.mixed::glance(model4)
+augment4 <- broom.mixed::augment(model4)
+```
+
+```{r}
+## the estimators for model4
+tidy4
+```
+
+```{r}
+rbind(glance1,
+      glance2,
+      glance3,
+      glance4) %>%
+  tibble() %>%
+  rownames_to_column("model")
+```
+
+\newpage
+
+### e. explore splines in fixed and random effects
+* comments on results
+   
+Because the earlier models indicates the time:operation interaction term did not contribute to the model performance, the interaction term is removed from model6. After remove the interaction, there is no significant improvement for model6 (AIC = 9893) than model5 (AIC = 9899).\
+
+The B-spline adds more flexibility to the model, so the over all fitting performs much better (with much lower AIC). The time trend and operation type can all significantly affect the aortic gradient level; but the time:operation interaction terms are still not significant, which is consistent for model5 and model6. The overall results are pretty consistent with earlier models.
+```{r}
+model5 <- lme(sqrt_aort_grad ~ bs(time) * type_op,
+              random = list(id = pdDiag(form = ~ bs(time))),
+              ## if the entire matrix used
+              ## then there might be a numerical problem
+              data = aort2)
+
+model6 <- lme(sqrt_aort_grad ~ bs(time) + type_op,
+              random = list(id = pdDiag(form = ~ bs(time))),
+              ## if the entire matrix used
+              ## then there might be a numerical problem
+              data = aort2)
+
+tidy5 <- broom.mixed::tidy(model5, effects = "fixed")
+glance5 <- broom.mixed::glance(model5)
+augment5 <- broom.mixed::augment(model5)
+tidy6 <- broom.mixed::tidy(model6, effects = "fixed")
+glance6 <- broom.mixed::glance(model6)
+augment6 <- broom.mixed::augment(model6)
+```
+
+```{r}
+tidy5
+tidy6
+```
+
+```{r}
+rbind(glance1,
+      glance2,
+      glance3,
+      glance4,
+      glance5,
+      glance6) %>%
+  tibble() %>%
+  rownames_to_column("model")
+```
+
+\newpage
+
+### f. plot the population trajectory
+* plot the predict 10 patients trajectory
+   
+Over all the trajectory can be approximated through quadratic or cubic function as increasing pattern.\
+In population level, the SI operation has a higher aortic gradient level than the RR operation.\
+There is a really high variability on the random effect on subject level. Also the subjects did not suffer events have shorter follow-up time, even the trends seem similar to the subjects with event. There is a chance that the missing mechanism is not random; without further analysis on the missing mechanism or data implement, the results might be biased.
+```{r fig.height=4, fig.width=6}
+set.seed(5555)
+augment5 <- broom.mixed::augment(model5) %>% 
+  as.data.frame()
+
+## use level = 0 for the population
+augment5_sub <-
+  augment5 %>%
+  group_by(id) %>%
+  nest() %>%
+  tibble() %>%
+  sample_n(size = 10,
+           replace = FALSE) %>%
+  unnest() %>%
+  tibble()
+```
+
+```{r fig.height=4, fig.width=6}
+plot_model5 <- 
+  ggplot(augment5) +
+  geom_line(aes(x = time, 
+                y = .fixed,
+                group = type_op,
+                color = type_op),
+            linetype = "solid",
+            size = 1) +
+  geom_line(data = augment5_sub,
+            aes(x = time,
+                y = .fitted,
+                group = id,
+                linetype = event,
+                color = type_op)) +
+  xlab("time") +
+  ylab("sqrt_aort_grad") +
+  theme_bw()
+
+plot_model5
+```
+
+\newpage
+
+### g. variance-covariance matrix for patient
+* correlation matrix for patient
+* from model2, model3, and model4 
+
+For model2 the covariance and correlation matrices are positive definite, the correlation keeps the same cross the time. \
+For model3 the covariance and correlation matrices are still positive definite and symmetric, but the correlation decreases over time.\
+For model5 the covariance and correlation matrices are still positive definite and symmetric, but there is no obvious pattern over time.
+```{r}
+#' get_cov_cor() is for covariance and correlation
+#'
+#' @param object a lm or lmm object
+#' @param id the subjec interested with
+#' @param type options: "margin", "residual", and "condition"
+#' @return mcov(marginal covariance matrix) 
+#' @return cor(correlation matrix based on mcov)
+#' @examples
+#' get_cov_cor(model1, 5, "condition")
+get_cov_cor <- 
+  function(object, id, type = "margin") {
+    mcov <- nlme::getVarCov(
+            obj = object,
+            individual = id,
+            type = type)
+    cor <- stats::cov2cor(mcov[[1]]) %>%
+      round(2)
+    
+    mcov <- mcov[["2"]] %>% 
+      round(2)
+    return(list(mcov, cor))
+  }
+```
+
+```{r}
+
+get_cov_cor(model2, 2) 
+```
+
+```{r}
+
+get_cov_cor(model4, 2)
+```
+
+```{r}
+
+get_cov_cor(model5, 2)
+```
+  
+\newpage
+
+## Question2 survival analysis
+* use the same dataset 
+* relationships between baseline and survival
+* create an individual level dataset
+
+### a. Kaplan-Meier survival curves
+* overall and operation type
+
+```{r}
+aort1$surobj <- with(aort1, Surv(ev_time, event == 1))
+
+fit0 <- survfit(surobj ~ 1,
+                data = aort1,
+                type = "kaplan-meier")
+fit1 <- survfit(surobj ~ type_op,
+                data = aort1,
+                type = "kaplan-meier")
+```
+
+```{r}
+plot_fit0 <- fit0 %>%
+  survminer::ggsurvplot(
+    data = aort1,
+    break.time.by = 1,
+    conf.int = TRUE,
+    fun = "pct",
+    risk.table = TRUE,
+    size = 1,
+    linetype = "strata")
+
+plot_fit1 <- fit1 %>%
+  survminer::ggsurvplot(
+    data = aort1,
+    break.time.by = 1,
+    conf.int = TRUE,
+    fun = "pct",
+    risk.table = TRUE,
+    size = 1,
+    linetype = "strata",
+    palette= c("#E7B800",
+               "#2E9FDF"),
+    legend = "bottom",
+    legend.title = "Operation",
+    legend.labs = c("RR", "SI"))
+```
+
+```{r fig.height=6, fig.width=15}
+plot_fit0 
+plot_fit1
+```
+
+\newpage
+
+### b. result from last question
+* estimate the predicted survival at 10 years for each type
+* approximate the estimate of the hazard ratio
+   
+For operation RR, the estimate survival at 10 years is 0.784;
+for operation IS, the estimate survival at 10 years is 0.0.772.
+So based on the approximation for median survival time and the survival at 10 years.\
+The proportional hazard ratio for RR and SI is around 1.08.
+
+```{r}
+summary(fit1, times = 10) 
+fit1 
+# survdiff(surobj ~ type_op, data = aort1)
+```
+
+```{r}
+h_rr <- (log(0.5) - log(0.784)) / (12.4 - 6.42)
+h_si <- (log(0.5) - log(0.772)) / (13.6 - 7.39)
+h_rr / h_si
+```
+
+\newpage
+   
+### c. categorize the baseline value into 4 group
+```{r}
+#' show_table() to get a frequency table
+#'
+#' @param data the dataset
+#' @param arg the categorical variable interested
+#' @return NULL but print function
+#' @examples
+#' show_table(aort1, sex)
+show_table <- function(data, arg) {
+  table <- with(data, table(arg)) %>%
+    as.data.frame() 
+  print(table)
+}
+
+aort3 <- aort %>% 
+  mutate(baseline = ifelse(time == 0, ao_gradient, NA)) %>%
+  fill(baseline) %>%
+  group_by(id, baseline) %>%
+  nest() %>%
+  mutate(group = case_when(
+    baseline <= quantile(.$baseline, 0.25) ~ "1",
+    baseline <= quantile(.$baseline, 0.50) ~ "2",
+    baseline <= quantile(.$baseline, 0.75) ~ "3",
+    baseline <= quantile(.$baseline, 1.00) ~ "4")) %T>%
+  show_table(.$group) %>%
+  unnest()
+```
+
+```{r}
+aort3$surobj <- with(aort3, Surv(ev_time, event == 1))
+
+fit2 <- survfit(surobj ~ group,
+                data = aort3)
+
+plot_fit2 <- fit2 %>%
+  survminer::ggsurvplot(
+    data = aort3,
+    break.time.by = 1,
+    conf.int = TRUE,
+    fun = "pct",
+    risk.table = TRUE,
+    size = 1,
+    linetype = "strata",
+    palette= c("#f7022a", 
+               "#1cbaa4",
+               "#E7B800",
+               "#2E9FDF"),
+    legend = "bottom",
+    legend.title = "Groups",
+    legend.labs = c("I", "II", "III", "IV"))
+```
+
+According to the Kaplan-Meier plot (plot_fit2), there is a clear correlation between the baseline aortic gradient level and the survival results. In population level, the lower baseline gradient the subject suffered, the lower risk rate and the longer of the median survival time.
+
+```{r fig.height=8, fig.width=15}
+plot_fit2
+```
+
+```{r}
+fit2
+```
+
+\newpage
+
+### d. fit a cox model and only use operation 
+
+Based on the Cox proportional hazard model (cox1), the operation type does not have a significant effect on the patient's survival time (p = 0.37). We cannot reject the null hypothesis. According to the model, the log risk rate will decrease 0.037, which is equivalent to 0.9635 (95% CI: 0.8875, 1.046) fold lower risk, for patient in SI operation than the RR operation. 
+```{r}
+cox1 <- coxph(surobj ~ type_op, 
+              data = aort1)
+summary(cox1)
+```
+
+
+\newpage
+   
+### e. predict the models cox1 and fit1
+
+As seen in the overlay plot (plot_cox), the colored dashed lines represent the Kaplan-Meier curves, and the grey solid lines represent the Cox predict curves.
+Due to no cross-over for different operation types and seemingly constant decreasing on survival rate. The Cox model is reasonable to be used for the model fitting. However due to the constant hazard ratio assumption for cox model, certain violations on the assumption for different operational type might happened. There is a shrinkage effect toward the mean of the overall survival trend.
+```{r fig.height=3, fig.width=9}
+aort4 <- aort1 %>%
+  mutate(coxsur = predict(cox1, type = "survival"))
+
+plot_cox <- autoplot(fit1, data = aort1,
+                     surv.size = 1,
+                     surv.linetype = "dashed",
+                     censor = FALSE) +
+  geom_line(data = aort4,
+            aes(ev_time, coxsur, 
+                group = type_op,
+                linetype = type_op),
+            color = "black",
+            alpha = 0.50,
+            size = 1) +
+  scale_colour_hue(l = 45, c = 200) +
+  theme_classic() 
+
+plot_cox
+```
+
+\newpage
+   
+### f. add baseline value of sqrt_aort_grad
+* add base_sqrt_aort into cox model
+  
+According to model cox2, both operation types and the baseline aortic gradient levels can significantly affect the subject survival time (pvalue << 0.001). 
+In population level, on average, patients with the SI operation  will experience 0.512 decreasing on log risk rate than RR operation; in another words, the risk rate will decrease to 0.600 (95% CI: 0.546, 0.658) fold in SI patients than RR patients. SI patients can enjoy a better survival time. 
+Also, on average, every unit increase on baseline sqrt aortic gradient level will cause increase of risk rate to 1.733 (95% CI: 1.656, 1.814) folds. This indicates that the patients with higher baseline aortic gradient suffer higher risk of event.
+```{r}
+aort5 <- aort3 %>% 
+  mutate(basesqrt = sqrt(baseline))
+
+cox2 <- coxph(surobj ~ type_op + basesqrt, 
+              data = aort5)
+tidyc2 <- broom.mixed::tidy(cox2)
+```
+
+```{r}
+summary(cox2)
+```
+
+```{r}
+tidyc2
+```
+

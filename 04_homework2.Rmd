@@ -1,0 +1,327 @@
+---
+title: "04_homework2"
+author: "Randy"
+date: "2/4/2021"
+output:
+  word_document: 
+    reference_docx: template.docx
+---
+# BIOS7721 Homework2
+
+```{r package, include=FALSE}
+## packages for data manipulation
+library(tidyverse)
+library(janitor)
+library(magrittr)
+
+## packages for graphs and plots
+library(ggplot2)
+library(ggfortify)
+
+## packages for survival
+library(survminer)
+library(survival)
+library(JM)
+
+## packages for lmm
+library(nlme)
+
+## packages for bootstrap
+library(boot)
+
+## packages for regression and tables
+library(broom)
+library(gtsummary)
+library(here)
+
+## software information
+sessionInfo()
+R.Version()
+```
+
+```{r setup, include=FALSE}
+## package_name::function_name
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  cache = TRUE)
+```
+
+## Introduction
+* dataset contains 500 patients
+* human tissue valve in aortic position
+* subcoronary implantation (SI) or root replacement (RR)
+* followed over time and longitudinal aortic gradient measurements 
+* at risk of experiencing death following their surgery
+
+```{r}
+aort <- here::here("aort_new.csv") %>% 
+  read_csv() %>%
+  janitor::clean_names() 
+
+## aort data is in longitudial form
+## each row is for one visit
+## one subject has many visit
+# View(aort)
+```
+
+## Question1. Survival analysis with a time-varying covariate
+
+### a. create the start/stop time data set
+* the beginning of a time interval represents a measurement time
+* the end of the final time window represents the survival time
+* You also need a new status indicator 
+* indicator value of 0 for all intervals 
+* the last indicator is 1 if an event is observed
+* the last indicator is 0 if a patient is censored
+* print the rows for Patients 1 and 2.
+
+```{r}
+aort1 <- aort %>%
+  ## tmerge cannot bear duplicate id
+  filter(time == 0) %>%
+  ## time based merge for survial data
+  survival::tmerge(
+    data1 = .,
+    data2 = .,
+    id = id, 
+    ## the tdc and event use 
+    ## the final value in the data
+    ## 4 types of operational arguments:
+    ## tdc/cumtdc/event/cumevent
+    death = event(survtime, event)) %>%
+  ## start stop death added
+  survival::tmerge(
+    data1 = .,
+    data2 = aort,
+    id = id,
+    sqrt_aort_grad = tdc(time, sqrt(aort_grad))) %>%
+  ## given time, sqrt_aort_grad added
+  select(id, tstart, 
+         tstop, death, 
+         sqrt_aort_grad, 
+         oper, sex)
+
+aort1 %>%
+  filter(id %in% c(1,2)) %>%
+  knitr::kable("simple", align = "c")
+
+```
+
+\newpage
+
+knitr::knit_exit()
+
+### b. for patient 3 create a stepped line plot 
+* square root aortic gradient
+* vertical dashed line for patient’s observed survival time
+
+
+```{r fig.height=3, fig.width=6}
+aort1_id3 <- aort1 %>%
+  filter(id == 3) 
+
+plot_id3 <- aort1_id3 %>%
+  ggplot(aes(tstart, sqrt_aort_grad)) +
+  geom_step(direction = "hv",
+            size = 1) +
+  geom_point(color = "darkred",
+             shape = "*",
+             size = 7) +
+  geom_vline(xintercept = max(aort1_id3$tstop),
+             linetype = "dashed",
+             color = "brown",
+             size = 1) +
+  theme_classic2() +
+  xlab("Time/year") +
+  ylab("sqrt(aortic gradient)")
+
+plot_id3
+```
+
+\newpage
+
+### c. fit an extended Cox survival model 
+* square root aortic gradient as a time-varying covariate
+* operation type and sex as a time-independent baseline covariate
+* interpret the coefficient estimates
+* what is the different from model with only the baseline values?
+
+```{r}
+aort1$survobj <- with(aort1, Surv(tstart, tstop, death))
+cox0 <- coxph(survobj ~ oper + sex, 
+              data = aort1)
+cox1 <- coxph(survobj ~ oper + sex + sqrt_aort_grad, 
+              data = aort1)
+
+tidy0 <- tidy(cox0) %>%
+  tibble() %>%
+  mutate(model = "cox-ex")
+tidy1 <- tidy(cox1) %>%
+  tibble() %>%
+  mutate(model = "cox-ex")
+glance0 <- glance(cox0)
+glance1 <- glance(cox1)
+
+summary(cox0)
+summary(cox1)
+
+rbind(glance0, glance1) %>%
+  tibble() %>%
+  rownames_to_column("model") %>%
+  select(model, AIC, BIC, logLik) %>%
+  knitr::kable("simple", align = "c")
+  
+```
+
+\newpage
+
+### d. comment on why it is not appropriate of the extended Cox model
+
+The extended Cox model assumptions is only valid for exogenous time dependent covariates, 
+however in this case, the aortic gradient level is a endogenous bio-marker, 
+the level of which closely realted to failure status. 
+Also it is unreasonable to assume the aortic level follows a step-wise path 
+and totally immune to measurement errors. 
+
+\newpage
+
+## Question2. Two stage model
+### a. fit a mixed effects model 
+* outcome: square root aortic gradient
+* fixed effects: linear time, operation type, and sex
+* random effects: intercept and linear slope for time
+* interpret the coefficient estimates from this model
+
+```{r}
+lme1 <- lme(sqrt_aort_grad ~ oper + sex + tstart, 
+            random = (~ 1 + tstart | id),
+            data = aort1)
+```
+
+\newpage
+
+### b. the mixed effects model as subject-specific predictions
+* the contributions from the random intercept and random slope
+* use as a time-varying covariate in a Cox survival model
+* Cox model includes operation type and sex as time independent baseline covariates
+* interpret the coefficient estimates from this model
+
+```{r}
+## why this is subject specific? this is marginal
+aort1$sqrt_aort_pred <- c(predict(lme1))
+
+cox2 <- coxph(survobj ~ oper + sex + sqrt_aort_pred,
+                data = aort1)
+tidy2 <- tidy(cox2) %>%
+  tibble() %>%
+  mutate(model = "two-time")
+glance2 <- glance(cox2)
+summary(cox2)
+```
+
+\newpage
+
+### c. bootstrap
+* compute the standard errors for Cox component of the two-stage model
+* the differences from the standard errors estimated in the model2? 
+* reasons of differences between two methods for inference?
+
+```{r}
+set.seed(555)
+View(aort1)
+get_coef <- function(formula, data, indices) {
+  formula <- as.formula(formula)
+  data1 <- data %>%
+    group_by(id) %>%
+    nest() %>%
+    as.data.frame() 
+  index <- sample(1:nrow(data1), 
+                  size = nrow(data1), 
+                  replace =TRUE)
+  data2 <- data1[index, ] %>%
+    unnest()
+  lmm <- lme(sqrt_aort_grad ~ oper + sex + tstart, 
+             random = (~ 1 + tstart | id),
+             data = data2)
+  data2$sqrt_aort_pred <- c(predict(lmm))
+  fit1 <- coxph(formula, 
+               data = data2)
+  return(coef(fit1))
+}
+
+cox_boots <- boot::boot(
+  data = aort1,
+  statistic = get_coef,
+  R = 50,
+  formula = "survobj ~ oper + sex + sqrt_aort_pred")
+
+```
+
+
+
+```{r}
+View(aort1)
+
+data <- aort1 %>% group_by(id) %>% nest()
+
+sub <- data[5, ] %>% unnest()
+
+View(sub)
+bootstrap <- boot::boot(
+  data = aort1,
+  statistic = bs_coef,
+  R = 1000)
+```
+
+```{r}
+get_boot <- function(bootstrap, index) {
+  boot <- boot.ci(bootstrap, 
+                  type = "norm",
+                  index = index)
+  boot <- boot$norm %>%
+    as.data.frame() %>%
+    mutate(coef = as.numeric(boot$t0)) %>%
+    select(coef, -conf, 
+           "lower .95" = V2, 
+           "upper .95" = V3)
+
+  return(boot)
+}
+
+boot1 <- map_df(.x = 1:3, ~ get_boot(bootstrap, index = .x)) %>%
+  transmute(`2.5 %` = `lower .95`,
+            `97.5 %` = `upper .95`) %>%
+  rownames_to_column("term") %>%
+  mutate(model = "boots") %>%
+  as.data.frame()
+
+confint(cox2) %>% 
+  as.data.frame() %>%
+  mutate(model = "two-time") %>%
+  rownames_to_column("term") %>%
+  rbind(boot1) %>%
+  select(model, everything()) %>%
+  arrange(term) %>%
+  knitr::kable("simple", align = "c")
+  
+```
+
+
+\newpage
+
+### d. comparation 
+* the two-stage model and the time-varying covariate model 
+* comment on any differences 
+* why these differences may exist
+```{r}
+rbind(tidy1, tidy2) %>%
+  select(model, everything()) %>%
+  arrange(term) %>%
+  knitr::kable("simple", align = "c")
+  
+```
+
+
+
