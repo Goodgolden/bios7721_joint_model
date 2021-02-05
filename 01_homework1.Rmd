@@ -41,12 +41,6 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r directory, include=FALSE}
-## not necessary if here::here() being used
-# getwd()
-# setwd("C:/Users/Goodgolden5/Desktop/BIOS7720")
-```
-
 ## Question1 longitudinal analysis
 ### a. the number of measurements varies
 * calculate each subject measurement number
@@ -146,7 +140,8 @@ The trend are affected by the samples chosen.
 Based on these ten samples,
 the subjects without events have shorter follow-up time;
 also some of their aortic gradient level increases slower over the time, 
-but the others aortic gradient trends have no difference with the subjects suffered events during follow-up. This indicates potential informative censor or missing not at random cases.
+but the others aortic gradient trends have no difference with the subjects suffered events during follow-up. 
+This indicates potential informative censor or missing not at random cases.
 Both groups time trend can be approximated through linear or quadratic trend.
 
 ```{r}
@@ -266,11 +261,15 @@ can significantly improve the inference model.
 
 For model3, there is a significant time trend for subject's aortic gradient level (p << 0.001). 
 On average, in population level, the subject's sqrt aortic gradient level increase 0.39 (95% CI: 0.38, 0.41)  unit in each year.
-Also the operation type does not significantly affect the patient's aortic gradient level (p = 0.13), and there is no significant time:operation interaction effect (p = 0.59).
+Also the operation type does not significantly affect the patient's aortic gradient level (p = 0.13), 
+and there is no significant time:operation interaction effect (p = 0.59).
 Intriguingly, the subject's baseline aortic gradient level can also affect the future (p << 0.01).
 On average, in population level, the patient, with higher baseline aortic gradient, 
-The increasing each unit of baseline sqrt aortic gradient will increase 0.76 (95% CI: 0.68, 0.84) unit in future sqrt aortic gradient level accordingly. 
-As random effects, there is a large standard deviation on sqrt aortic gradient level (sd = 0.78) on individual level. Also the random effects residual standard deviation is pretty large too. These indicate the individual level variation could not be ignored but treated as random effects individually.
+The increasing each unit of baseline sqrt aortic gradient will increase 0.76 (95% CI: 0.68, 0.84) unit 
+in future sqrt aortic gradient level accordingly. 
+As random effects, there is a large standard deviation on sqrt aortic gradient level (sd = 0.78) on individual level.
+Also the random effects residual standard deviation is pretty large too. 
+These indicate the individual level variation could not be ignored but treated as random effects individually.
 ```{r}
 rbind(glance1, 
       glance2,
@@ -311,7 +310,8 @@ Two more parameters are estimated, the estimate for random slope and its correla
 The random slope on time has standard deviation 0.18, with mean set as zero. 
 In this case, the variability of random time slope effects among subjects cannot be ignored.
 
-After addition of random slope term the AIC decreased 884 to 11864; this indicates the variability on random time slope term for each individual.
+After addition of random slope term the AIC decreased 884 to 11864; 
+this indicates the variability on random time slope term for each individual.
 ```{r}
 model4 <- lme(sqrt_aort_grad ~ basesqrt + time * type_op,
                random = ~ time + 1 | id, 
@@ -340,9 +340,16 @@ rbind(glance1,
 ### e. explore splines in fixed and random effects
 * comments on results
    
-Because the earlier models indicates the time:operation interaction term did not contribute to the model performance, the interaction term is removed from model6. After remove the interaction, there is no significant improvement for model6 (AIC = 9893) than model5 (AIC = 9899).\
+Because the time:operation interaction term did not contribute to the model performance, 
+the interaction term is removed from model6. After remove the interaction, 
+there is no significant improvement for model6 (AIC = 9893) than model5 (AIC = 9899).\
 
-The B-spline adds more flexibility to the model, so the over all fitting performs much better (with much lower AIC). The time trend and operation type can all significantly affect the aortic gradient level; but the time:operation interaction terms are still not significant, which is consistent for model5 and model6. The overall results are pretty consistent with earlier models.
+The B-spline adds more flexibility to the model, 
+so the over all fitting performs much better (with much lower AIC). 
+The time trend and operation type can all significantly affect the aortic gradient level; 
+but the time:operation interaction terms are still not significant, 
+which is consistent for model5 and model6. 
+The overall results are pretty consistent with earlier models.
 ```{r}
 model5 <- lme(sqrt_aort_grad ~ bs(time) * type_op,
               random = list(id = pdDiag(form = ~ bs(time))),
@@ -387,7 +394,13 @@ rbind(glance1,
    
 Over all the trajectory can be approximated through quadratic or cubic function as increasing pattern.\
 In population level, the SI operation has a higher aortic gradient level than the RR operation.\
-There is a really high variability on the random effect on subject level. Also the subjects did not suffer events have shorter follow-up time, even the trends seem similar to the subjects with event. There is a chance that the missing mechanism is not random; without further analysis on the missing mechanism or data implement, the results might be biased.
+There is a really high variability on the random effect on subject level. 
+Also the subjects did not suffer events have shorter follow-up time, 
+even the trends seem similar to the subjects with event.
+
+There is a chance that the missing mechanism is not random; 
+without further analysis on the missing mechanism or data implement,
+the results might be biased.
 ```{r fig.height=4, fig.width=6}
 set.seed(5555)
 augment5 <- broom.mixed::augment(model5) %>% 
@@ -433,9 +446,12 @@ plot_model5
 * correlation matrix for patient
 * from model2, model3, and model4 
 
-For model2 the covariance and correlation matrices are positive definite, the correlation keeps the same cross the time. \
-For model3 the covariance and correlation matrices are still positive definite and symmetric, but the correlation decreases over time.\
-For model5 the covariance and correlation matrices are still positive definite and symmetric, but there is no obvious pattern over time.
+For model2 the covariance and correlation matrices are positive definite, 
+the correlation keeps the same cross the time. \
+For model3 the covariance and correlation matrices are still positive definite and symmetric, 
+but the correlation decreases over time.\
+For model5 the covariance and correlation matrices are still positive definite and symmetric, 
+but there is no obvious pattern over time.
 ```{r}
 #' get_cov_cor() is for covariance and correlation
 #'
@@ -607,7 +623,10 @@ plot_fit2 <- fit2 %>%
     legend.labs = c("I", "II", "III", "IV"))
 ```
 
-According to the Kaplan-Meier plot (plot_fit2), there is a clear correlation between the baseline aortic gradient level and the survival results. In population level, the lower baseline gradient the subject suffered, the lower risk rate and the longer of the median survival time.
+According to the Kaplan-Meier plot (plot_fit2),
+there is a clear correlation between the baseline aortic gradient level and the survival results. 
+In population level, the lower baseline gradient the subject suffered, 
+the lower risk rate and the longer of the median survival time.
 
 ```{r fig.height=8, fig.width=15}
 plot_fit2
@@ -621,7 +640,12 @@ fit2
 
 ### d. fit a cox model and only use operation 
 
-Based on the Cox proportional hazard model (cox1), the operation type does not have a significant effect on the patient's survival time (p = 0.37). We cannot reject the null hypothesis. According to the model, the log risk rate will decrease 0.037, which is equivalent to 0.9635 (95% CI: 0.8875, 1.046) fold lower risk, for patient in SI operation than the RR operation. 
+Based on the Cox proportional hazard model (cox1), 
+the operation type does not have a significant effect on the patient's survival time (p = 0.37). 
+We cannot reject the null hypothesis. 
+According to the model, the log risk rate will decrease 0.037, 
+which is equivalent to 0.9635 (95% CI: 0.8875, 1.046) fold lower risk, 
+for patient in SI operation than the RR operation. 
 ```{r}
 cox1 <- coxph(surobj ~ type_op, 
               data = aort1)
@@ -633,8 +657,14 @@ summary(cox1)
    
 ### e. predict the models cox1 and fit1
 
-As seen in the overlay plot (plot_cox), the colored dashed lines represent the Kaplan-Meier curves, and the grey solid lines represent the Cox predict curves.
-Due to no cross-over for different operation types and seemingly constant decreasing on survival rate. The Cox model is reasonable to be used for the model fitting. However due to the constant hazard ratio assumption for cox model, certain violations on the assumption for different operational type might happened. There is a shrinkage effect toward the mean of the overall survival trend.
+As seen in the overlay plot (plot_cox), 
+the colored dashed lines represent the Kaplan-Meier curves, 
+and the grey solid lines represent the Cox predict curves.
+Due to no cross-over for different operation types and seemingly constant decreasing on survival rate. 
+The Cox model is reasonable to be used for the model fitting. 
+However due to the constant hazard ratio assumption for cox model, 
+certain violations on the assumption for different operational type might happened. 
+There is a shrinkage effect toward the mean of the overall survival trend.
 ```{r fig.height=3, fig.width=9}
 aort4 <- aort1 %>%
   mutate(coxsur = predict(cox1, type = "survival"))
@@ -661,9 +691,17 @@ plot_cox
 ### f. add baseline value of sqrt_aort_grad
 * add base_sqrt_aort into cox model
   
-According to model cox2, both operation types and the baseline aortic gradient levels can significantly affect the subject survival time (pvalue << 0.001). 
-In population level, on average, patients with the SI operation  will experience 0.512 decreasing on log risk rate than RR operation; in another words, the risk rate will decrease to 0.600 (95% CI: 0.546, 0.658) fold in SI patients than RR patients. SI patients can enjoy a better survival time. 
-Also, on average, every unit increase on baseline sqrt aortic gradient level will cause increase of risk rate to 1.733 (95% CI: 1.656, 1.814) folds. This indicates that the patients with higher baseline aortic gradient suffer higher risk of event.
+According to model cox2, both operation types and the baseline aortic gradient levels 
+can significantly affect the subject survival time (pvalue << 0.001). 
+In population level, on average, patients with the SI operation will
+experience 0.512 decreasing on log risk rate than RR operation;
+in another words, the risk rate will decrease to 0.600 (95% CI: 0.546, 0.658) fold 
+in SI patients than RR patients. 
+
+SI patients can enjoy a better survival time. 
+Also, on average, every unit increase on baseline sqrt aortic gradient level will 
+cause increase of risk rate to 1.733 (95% CI: 1.656, 1.814) folds. 
+This indicates that the patients with higher baseline aortic gradient suffer higher risk of event.
 ```{r}
 aort5 <- aort3 %>% 
   mutate(basesqrt = sqrt(baseline))
@@ -675,9 +713,5 @@ tidyc2 <- broom.mixed::tidy(cox2)
 
 ```{r}
 summary(cox2)
-```
-
-```{r}
-tidyc2
 ```
 
