@@ -2,8 +2,8 @@
 ## BIOS7721 Longitudinal and Time-to-event Joint Model Analysis
 ## 2021 Spring term
 
-all the analysis use aort.csv file
-data descriptions:
+all the analysis use aort.csv file\
+data descriptions:\
 * id : unique patient id
 * aort.grad: aortic gradient
 * time: visit date (years from surgery date)
@@ -14,7 +14,7 @@ data descriptions:
 * age: patient age at time of surgery
 
 
-Time log for overall lectures/
+Time log for overall lectures\
     
 20210129 00_homework1 added\
     
