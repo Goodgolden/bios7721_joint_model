@@ -111,13 +111,9 @@ aort1 %>%
 
 \newpage
 
-knitr::knit_exit()
-
 ### b. for patient 3 create a stepped line plot 
 * square root aortic gradient
-* vertical dashed line for patient’s observed survival time
-
-
+* vertical dashed line for patient's observed survival time
 ```{r fig.height=3, fig.width=6}
 aort1_id3 <- aort1 %>%
   filter(id == 3) 
@@ -146,15 +142,28 @@ plot_id3
 * square root aortic gradient as a time-varying covariate
 * operation type and sex as a time-independent baseline covariate
 * interpret the coefficient estimates
-* what is the different from model with only the baseline values?
-
+* how it is the different from model with only the baseline values?
+The aortic gradient level can significantly affect 
+\
+the subject's survival status (p << 0.001).
+On average, one unit increase on the sqrt of aortic gradient 
+can increase the risk of event to 1.5 folds (95% CI 1.39 1.62).\
+After adjusted for the biomarker aortic gradient, 
+the effect of operation type on survival becomes on significant, 
+and effect size exp(operation) changes from 0.95 fold to 0.67; 
+given patient's aort gradient level, operation SI has stronger effects
+on survival improvement for certain patient.\
+Also the adjustment of biomarker revert the effect of gender, 
+from increasing risk of event to decreasing risk of event, 
+even though neither of model show these gender effects significant.\
+Overall the model performance gets improved in model cox1 (AIC = 2284);
+the AIC decreased, comparing to the baseline value model cox0 (AIC = 2400).
 ```{r}
 aort1$survobj <- with(aort1, Surv(tstart, tstop, death))
 cox0 <- coxph(survobj ~ oper + sex, 
               data = aort1)
 cox1 <- coxph(survobj ~ oper + sex + sqrt_aort_grad, 
               data = aort1)
-
 tidy0 <- tidy(cox0) %>%
   tibble() %>%
   mutate(model = "cox-ex")
@@ -163,27 +172,34 @@ tidy1 <- tidy(cox1) %>%
   mutate(model = "cox-ex")
 glance0 <- glance(cox0)
 glance1 <- glance(cox1)
-
+```
+\break
+```{r}
 summary(cox0)
 summary(cox1)
-
+```
+\break
+```{r}
 rbind(glance0, glance1) %>%
   tibble() %>%
   rownames_to_column("model") %>%
   select(model, AIC, BIC, logLik) %>%
   knitr::kable("simple", align = "c")
-  
 ```
 
 \newpage
 
 ### d. comment on why it is not appropriate of the extended Cox model
 
-The extended Cox model assumptions is only valid for exogenous time dependent covariates, 
-however in this case, the aortic gradient level is a endogenous bio-marker, 
-the level of which closely realted to failure status. 
-Also it is unreasonable to assume the aortic level follows a step-wise path 
-and totally immune to measurement errors. 
+The extended Cox model assumptions is only valid 
+for exogenous time dependent covariates.
+However in this case, the aortic gradient level is a endogenous bio-marker, 
+the level of which closely related to failure status. \
+The biomarker level cannot be predetermined or totally immune to measurement errors.\ 
+Also for extended Cox model, we would assume that 
+the aortic gradient changes only at the measurement times and remain constant 
+between two measurements, as step-function approximation.\
+Therefore, extended Cox model is not appropriate, or at least not the optimal method.
 
 \newpage
 
@@ -195,10 +211,22 @@ and totally immune to measurement errors.
 * interpret the coefficient estimates from this model
 
 ```{r}
-lme1 <- lme(sqrt_aort_grad ~ oper + sex + tstart, 
-            random = (~ 1 + tstart | id),
-            data = aort1)
+lme1 <- nlme::lme(sqrt_aort_grad ~ oper + sex + tstart, 
+                  random = (~ 1 + tstart | id),
+                  data = aort1)
+summary(lme1)
+tidy(lme1)
 ```
+As seen in model lme1, time has a very highly significant effect on
+the level of aortic gradient level (p << 0.001); 
+on average, every year will increase the subject's sqrt aortic gradient level 0.33 unit.
+Operation type SI can increase sqrt aortic gradient 0.737 compare to RR.
+
+There is some variability for each patient baseline aortic gradient level sd_(Intercept) = 0.934,
+and the random linear time effects sd_slope = 0.175. 
+The random intercept and random slope are not strongly related with each other.
+We can see that the variability for within individual is still pretty high time to time.
+
 
 \newpage
 
@@ -228,9 +256,17 @@ summary(cox2)
 * the differences from the standard errors estimated in the model2? 
 * reasons of differences between two methods for inference?
 
-```{r}
+
+model	term	       2.5 %	97.5 %
+two-time	operSI	-0.6356173	-0.0966928
+boots	operSI    	-0.7919904	-0.2997002
+two-time	sexMale	-0.3683776	0.1460658
+boots	sexMale	    -0.2161467	0.2858354
+two-time	sqrt_ao  0.2645691	0.4400034
+boots	sqrt_aort_   0.2718825	0.4435482
+
+```{r message=FALSE, warning=FALSE}
 set.seed(555)
-View(aort1)
 get_coef <- function(formula, data, indices) {
   formula <- as.formula(formula)
   data1 <- data %>%
@@ -254,25 +290,8 @@ get_coef <- function(formula, data, indices) {
 cox_boots <- boot::boot(
   data = aort1,
   statistic = get_coef,
-  R = 50,
+  R = 1000,
   formula = "survobj ~ oper + sex + sqrt_aort_pred")
-
-```
-
-
-
-```{r}
-View(aort1)
-
-data <- aort1 %>% group_by(id) %>% nest()
-
-sub <- data[5, ] %>% unnest()
-
-View(sub)
-bootstrap <- boot::boot(
-  data = aort1,
-  statistic = bs_coef,
-  R = 1000)
 ```
 
 ```{r}
@@ -290,7 +309,7 @@ get_boot <- function(bootstrap, index) {
   return(boot)
 }
 
-boot1 <- map_df(.x = 1:3, ~ get_boot(bootstrap, index = .x)) %>%
+boot1 <- map_df(.x = 1:3, ~ get_boot(cox_boots, index = .x)) %>%
   transmute(`2.5 %` = `lower .95`,
             `97.5 %` = `upper .95`) %>%
   rownames_to_column("term") %>%
@@ -315,6 +334,13 @@ confint(cox2) %>%
 * the two-stage model and the time-varying covariate model 
 * comment on any differences 
 * why these differences may exist
+
+Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error. 
+
+The Cox extended model use step function approximation for the time dependent covariate,
+which measured without error. This may introduce bias to the estimates and standard error.\
+
+
 ```{r}
 rbind(tidy1, tidy2) %>%
   select(model, everything()) %>%

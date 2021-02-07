@@ -1,0 +1,201 @@
+---
+title: "03_joint_model"
+author: "Randy"
+date: "1/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(JM)
+library(survival)
+```
+
+
+```{r}
+lme_p1 <- lme(log(serBilir) ~ year + drug:year,
+              random = ~ year | id,
+              data = pbc2)
+
+summary(lme_p1)
+
+# broom.mixed::augment(lme_p1)
+# broom.mixed::tidy(lme_p1)
+# broom.mixed::glance(lme_p1)
+```
+
+
+```{r}
+mcov_p1 <- getVarCov(lme_p1,
+                     individuals = 1:6,
+                     ## type: "random effects",
+                     ## "conditional"
+                     type = "marginal")
+mcov_p1 
+
+cov2cor(mcov_p1[[1]])
+cov2cor(mcov_p1[[5]])
+```
+
+```{r}
+## use expand.grid to set a new design matrix
+## to get the predict value for individual 6
+contrast6 <-
+  expand.grid(
+    id = 6,
+    year = c(0.5, 1.5),
+    drug = c("D-penicil", "placebo"))
+contrast6$pred <-
+  predict(
+    object = lme_p1,
+    newdata = contrast6)
+contrast6
+
+contrast <-
+  expand.grid(
+    year = c(0.5, 1.5),
+    drug = c("D-penicil", "placebo"))
+contrast$pred <-
+  predict(
+    object = lme_p1,
+    newdata = contrast,
+    level = 0)
+contrast
+
+```
+
+
+```{r}
+lme_p2 <- lme(log(serBilir) ~ year + drug:year, 
+              ## with a diagnoal covariance matrix
+              ## to construct a pdiag class
+              ## a diagnoal positive definite matrix
+              random = list(id = pdDiag(form = ~ year)),
+              data = pbc2)
+summary(lme_p2)
+```
+
+```{r}
+lme_y1 <- lme(log(serBilir) ~ year,
+              random = list(id = pdDiag(form = ~ year)),
+              data = pbc2)
+summary(lme_y1)
+```
+
+```{r}
+lme_y2 <- lme(log(serBilir) ~ bs(year), 
+              random = list(id = pdDiag(form = ~ bs(year))),
+              data = pbc2)
+summary(lme_y2)
+```
+
+for the joint model, the parameters number, including in the linear predictor and in the 
+model for baseline hazard should be 1/10 and 1/20 of the total number of events in the sample.
+
+the number of spline coefficients m\
+the degree of B-spline basis function q\
+the number of interior knots n\
+m = n + q - 1\
+
+increasing the number of knots can increase the flexibility,
+but keep a balance between bias and variance and avoid overfitting.\
+
+after the number of knots decided, the location depends on the percentiles of censor and event times.
+```{r}
+lme_y3 <- lme(log(serBilir) ~ bs(year, knots = c(2, 5)), 
+              random = list(id = pdDiag(form = ~ bs(year, knots = c(2, 5)))),
+              data = pbc2)
+summary(lme_y3)
+?bs
+```
+
+
+```{r}
+lme_y4 <- lme(log(serBilir) ~ bs(year, 
+                                 ## provide either df or knots
+                                 # df = length(knots) + degree + 1
+                                 knots = c(2, 5)),
+              random = list(id = pdDiag(form = ~ year)),
+              data = pbc2)
+
+mcov_y4 <- getVarCov(lme_y4, 
+                     individuals = 5, 
+                     type = "marginal")
+mcor_y4 <- cov2cor(mcov_y4[[1]])
+
+summary(lme_y4)
+# broom.mixed::augment(lme_y4)
+# broom.mixed::glance(lme_y4)
+```
+
+
+```{r}
+head(aids.id[c("patient", "start", 
+            "stop", "event",
+            "CD4", "obstime", 
+            "drug")], 7)
+```
+
+```{r}
+td_cox <- coxph(Surv(start, stop, event) ~ drug + CD4,
+                data = aids)
+
+surv1 <- Surv(aids$start, aids$stop, aids$event)
+surv2 <- aids %>%
+  with(Surv(stop, event))
+
+# surv1; surv2
+
+td_cox
+
+td_cox$coefficients[[2]] %>% exp()
+## one unit increase of CD4 cell counter 
+## will make the risk for death decreased
+## to 82.41% of the chance
+```
+
+
+```{r}
+aids_id <- aids[!duplicated(aids$patient), ]
+```
+
+we need to elaborate specification of time structures in the time effect for longitudinal submodel. possibly the interactions between the postulated time structure and baseline covariates.
+
+1. consider flexible representations for high order polynomials and splines.
+2. incorporate an additional stochastic term
+
+to capture the remaining serial correlation in the observed measurements.
+for example: Ornstein-Uhlenbeck process, and latent stationary Gaussian process\
+
+it is advisable to opt for either 1 or 2; but not necessary for both.
+
+
+```{r}
+lme_aids <- lme(CD4 ~ obstime + obstime:drug,
+                random = ~ obstime | patient, 
+                data = JM::aids)
+
+
+cox_aids <- coxph(Surv(Time, death) ~ drug,
+                  data = JM::aids.id, 
+                  model = TRUE,
+                  x = TRUE)
+
+joint_aids <- 
+  JM::jointModel(
+    lmeObject = lme_aids, 
+    survObject = cox_aids,
+    ## required in internal computation of mi(t)
+    ## the true value of the time-dependent-varying
+    timeVar = "obstime",
+    ## the type of baseline risk function
+    ## assumed to be piecewise constant
+    method = "piecewise-PH-aGH")
+
+summary(joint_aids)
+save(joint_aids, file = "joint_aids.Rdata")
+load("joint_aids.Rdata")
+# str(joint_aids)
+```
+
