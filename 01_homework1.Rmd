@@ -196,7 +196,7 @@ plot_sample
    
 According to the random intercept model (model1),
 the time has a very highly significant effect on the subject's aortic gradient level (p << 0.001).
-Hence, there is an evidence for the mean aortic fradient changing over time.\
+Hence, there is an evidence for the mean aortic gradient changing over time.\
 According to the model adjusted for operation type (model2),
 there is a very highly significant effect on the subject's aortic gradient level 
 over different operation type (p << 0.001); 
@@ -322,7 +322,7 @@ augment4 <- broom.mixed::augment(model4)
 ```
 
 ```{r}
-## the estimators for model4
+## the estimators for model
 tidy4
 ```
 
@@ -369,6 +369,9 @@ augment5 <- broom.mixed::augment(model5)
 tidy6 <- broom.mixed::tidy(model6, effects = "fixed")
 glance6 <- broom.mixed::glance(model6)
 augment6 <- broom.mixed::augment(model6)
+
+summary(model5)
+summary(model6)
 ```
 
 ```{r}
@@ -416,6 +419,7 @@ augment5_sub <-
            replace = FALSE) %>%
   unnest() %>%
   tibble()
+augment5
 ```
 
 ```{r fig.height=4, fig.width=6}
@@ -478,18 +482,15 @@ get_cov_cor <-
 ```
 
 ```{r}
-
-get_cov_cor(model2, 2) 
+get_cov_cor(model2, 2) %>% knitr::kable()
 ```
 
 ```{r}
-
-get_cov_cor(model4, 2)
+get_cov_cor(model4, 2) %>% knitr::kable()
 ```
 
 ```{r}
-
-get_cov_cor(model5, 2)
+get_cov_cor(model5, 2) %>% knitr::kable()
 ```
   
 \newpage
@@ -597,6 +598,7 @@ aort3 <- aort %>%
     baseline <= quantile(.$baseline, 1.00) ~ "4")) %T>%
   show_table(.$group) %>%
   unnest()
+
 ```
 
 ```{r}
