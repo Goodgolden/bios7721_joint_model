@@ -3,6 +3,7 @@
 ## 2021 Spring term
 
 all the analysis use aort.csv file\
+<<<<<<< HEAD
 the data set contains data from 500 patients 
 who received a human tissue valve in the aortic position. \
 Patients either received a subcoronary implantation (SI) or a root replacement (RR).\
@@ -19,6 +20,17 @@ data descriptions:\
 * oper: categorical indicator of type of operation (SI or RR)\
 * sex: gender\
 * age: patient age at time of surgery\
+=======
+data descriptions:\
+* id : unique patient id
+* aort.grad: aortic gradient
+* time: visit date (years from surgery date)
+* event: death status (1: dead, 0: patient is alive at end of follow-up)
+* survtime: years from surgery date until last follow-up
+* oper: categorical indicator of type of operation (SI or RR)
+* sex: gender
+* age: patient age at time of surgery
+>>>>>>> f12f1f33c04cf27a05a126c812c731167565cbb6
 
 
 Time log for overall lectures\
