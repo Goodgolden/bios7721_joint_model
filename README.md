@@ -27,4 +27,5 @@ Time log for overall lectures\
     
 20210205 04_homework2 unfinished\
 
+20210207 00_homework1 corrected\
 
