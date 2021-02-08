@@ -8,8 +8,10 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-library(JM)
 library(survival)
+library(JM)
+
+library(broom.mixed)
 ```
 
 
@@ -129,14 +131,6 @@ summary(lme_y4)
 # broom.mixed::glance(lme_y4)
 ```
 
-
-```{r}
-head(aids.id[c("patient", "start", 
-            "stop", "event",
-            "CD4", "obstime", 
-            "drug")], 7)
-```
-
 ```{r}
 td_cox <- coxph(Surv(start, stop, event) ~ drug + CD4,
                 data = aids)
@@ -182,20 +176,51 @@ cox_aids <- coxph(Surv(Time, death) ~ drug,
                   model = TRUE,
                   x = TRUE)
 
-joint_aids <- 
-  JM::jointModel(
-    lmeObject = lme_aids, 
-    survObject = cox_aids,
-    ## required in internal computation of mi(t)
-    ## the true value of the time-dependent-varying
-    timeVar = "obstime",
-    ## the type of baseline risk function
-    ## assumed to be piecewise constant
-    method = "piecewise-PH-aGH")
+# joint_aids <- 
+#   JM::jointModel(
+#     lmeObject = lme_aids, 
+#     survObject = cox_aids,
+#     ## required in internal computation of mi(t)
+#     ## the true value of the time-dependent-varying
+#     timeVar = "obstime",
+#     ## the type of baseline risk function
+#     ## assumed to be piecewise constant
+#     method = "piecewise-PH-aGH")
+# save(joint_aids, file = "joint_aids.Rdata")
 
-summary(joint_aids)
-save(joint_aids, file = "joint_aids.Rdata")
+
 load("joint_aids.Rdata")
+summary(joint_aids)
 # str(joint_aids)
 ```
+
+the parameter labeled "Assoct" is the alpha;
+the association between mi(t) and the risk for death.
+
+the xi.. are the epslion parameters for piecewise-constant baseline risk function.
+
+comparison to the cox extended model, we clearly see non-negligible differences. 
+
+$$ h_{0} (t) = \sum^Q_{q=1} \xi_{q} I(v_{q-1} < t< v_q) \ \ \ \ \ (4.3)$$
+$$log \ h_0(t) = \kappa_0 + \sum^m_{d=1}\kappa_dB_d(t,q)\ \ \ \ \ (4.4)$$
+
+$$
+\begin{cases}
+y_i(t) = m_i(t) + \epsilon_i(t),\\
+m_i(t) = x_i^T(t)\beta + z__i^T(t)b_i,\\
+b_i ~ N(0, D),\\
+\epsilon_i ~ N(0, \sigma^2)
+\end{cases}
+$$
+
+
+
+for stochastic process independent of $b_i$, $\epsilon_i$:
+$$y_i(t) = m_i(t) + u_i(t) + \epsilon_i(t) \ \ \ \ \ (4.6)$$
+
+currently the `r package::JM()` only works with linear mixed effects submodels with iid error terms and no serial correlation structures as in 
+
+
+
+
 

@@ -159,6 +159,7 @@ even though neither of model show these gender effects significant.\
 Overall the model performance gets improved in model cox1 (AIC = 2284);
 the AIC decreased, comparing to the baseline value model cox0 (AIC = 2400).
 ```{r}
+## add the survobj into aort1 as part of dataset
 aort1$survobj <- with(aort1, Surv(tstart, tstop, death))
 cox0 <- coxph(survobj ~ oper + sex, 
               data = aort1)
@@ -257,7 +258,7 @@ summary(cox2)
 * reasons of differences between two methods for inference?
 
 
-model	term	       2.5 %	97.5 %
+model	term	       2.5 %    	97.5 %
 two-time	operSI	-0.6356173	-0.0966928
 boots	operSI    	-0.7919904	-0.2997002
 two-time	sexMale	-0.3683776	0.1460658

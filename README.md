@@ -1,6 +1,6 @@
 # bios7721_joint_model
-## BIOS7721 Longitudinal and Time-to-event Joint Model Analysis
-## 2021 Spring term
+## 2021 Spring term BIOS7721
+## Longitudinal and Time-to-event Joint Model Analysis
 
 all the analysis use aort.csv file\
 

@@ -221,8 +221,8 @@ glance2 <- broom.mixed::glance(model2)
 
 ```{r}
 ## effects for model1, model2
-tidy1
-tidy2
+tidy1 %>% knitr::kable("simple", align = "c")
+tidy2 %>% knitr::kable("simple", align = "c")
 ```
 
 To see the subject individual aortic gradient variability to baseline level,
@@ -247,8 +247,8 @@ glance3 <- broom.mixed::glance(model3)
 ```
 
 ```{r}
-tidyf3
-tidyr3
+tidyf3 %>% knitr::kable("simple", align = "c")
+tidyr3 %>% knitr::kable("simple", align = "c")
 ```
 
 As seen for the criteria comparison cross the three models,
@@ -274,7 +274,8 @@ These indicate the individual level variation could not be ignored but treated a
 rbind(glance1, 
       glance2,
       glance3) %>%
-  rownames_to_column("model") 
+  rownames_to_column("model") %>% 
+  knitr::kable("simple", align = "c")
 ```
 
 ```{r}
@@ -323,7 +324,7 @@ augment4 <- broom.mixed::augment(model4)
 
 ```{r}
 ## the estimators for model
-tidy4
+tidy4 %>% knitr::kable("simple", align = "c")
 ```
 
 ```{r}
@@ -332,7 +333,8 @@ rbind(glance1,
       glance3,
       glance4) %>%
   tibble() %>%
-  rownames_to_column("model")
+  rownames_to_column("model") %>% 
+  knitr::kable("simple", align = "c")
 ```
 
 \newpage
@@ -375,8 +377,8 @@ summary(model6)
 ```
 
 ```{r}
-tidy5
-tidy6
+tidy5 %>% knitr::kable("simple", align = "c")
+tidy6 %>% knitr::kable("simple", align = "c")
 ```
 
 ```{r}
@@ -387,7 +389,8 @@ rbind(glance1,
       glance5,
       glance6) %>%
   tibble() %>%
-  rownames_to_column("model")
+  rownames_to_column("model") %>%
+  knitr::kable("simple", align = "c")
 ```
 
 \newpage
@@ -419,7 +422,6 @@ augment5_sub <-
            replace = FALSE) %>%
   unnest() %>%
   tibble()
-augment5
 ```
 
 ```{r fig.height=4, fig.width=6}
@@ -482,15 +484,15 @@ get_cov_cor <-
 ```
 
 ```{r}
-get_cov_cor(model2, 2) %>% knitr::kable()
+get_cov_cor(model2, 2) %>% knitr::kable("simple", align = "c")
 ```
 
 ```{r}
-get_cov_cor(model4, 2) %>% knitr::kable()
+get_cov_cor(model4, 2) %>% knitr::kable("simple", align = "c")
 ```
 
 ```{r}
-get_cov_cor(model5, 2) %>% knitr::kable()
+get_cov_cor(model5, 2) %>% knitr::kable("simple", align = "c")
 ```
   
 \newpage
@@ -504,6 +506,7 @@ get_cov_cor(model5, 2) %>% knitr::kable()
 * overall and operation type
 
 ```{r}
+aort1 <- filter(aort1, time == 0)
 aort1$surobj <- with(aort1, Surv(ev_time, event == 1))
 
 fit0 <- survfit(surobj ~ 1,
@@ -533,7 +536,6 @@ plot_fit1 <- fit1 %>%
     fun = "pct",
     risk.table = TRUE,
     size = 1,
-    linetype = "strata",
     palette= c("#E7B800",
                "#2E9FDF"),
     legend = "bottom",
@@ -546,32 +548,40 @@ plot_fit0
 plot_fit1
 ```
 
+
 \newpage
 
 ### b. result from last question
 * estimate the predicted survival at 10 years for each type
 * approximate the estimate of the hazard ratio
    
-For operation RR, the estimate survival at 10 years is 0.784;
-for operation IS, the estimate survival at 10 years is 0.0.772.
+For operation RR, the estimate survival at 10 years is 0.674;
+for operation IS, the estimate survival at 10 years is 0.662.
 So based on the approximation for median survival time and the survival at 10 years.\
-The proportional hazard ratio for RR and SI is around 1.08.
+The proportional hazard ratio for RR and SI is around 1.2 at 10 years.
 
 ```{r}
-summary(fit1, times = 10) 
-fit1 
+summary(fit1, times = 10)
+summary(fit1, times = 9.5) 
+summary(fit1, times = 10.5)
 # survdiff(surobj ~ type_op, data = aort1)
 ```
 
 ```{r}
-h_rr <- (log(0.5) - log(0.784)) / (12.4 - 6.42)
-h_si <- (log(0.5) - log(0.772)) / (13.6 - 7.39)
+h_rr <- (log(0.7065) - log(0.6066)) / (9.5 - 10.5)
+h_si <- (log(0.7144) - log(0.6304)) / (9.5 - 10.5)
 h_rr / h_si
 ```
 
 \newpage
    
 ### c. categorize the baseline value into 4 group
+
+
+According to the Kaplan-Meier plot (plot_fit2),
+there is a clear correlation between the baseline aortic gradient level and the survival results. 
+In population level, the lower baseline gradient the subject suffered, 
+the lower risk rate and the longer of the median survival time.
 ```{r}
 #' show_table() to get a frequency table
 #'
@@ -602,6 +612,7 @@ aort3 <- aort %>%
 ```
 
 ```{r}
+aort3 <- filter(aort3, time == 0)
 aort3$surobj <- with(aort3, Surv(ev_time, event == 1))
 
 fit2 <- survfit(surobj ~ group,
@@ -615,7 +626,6 @@ plot_fit2 <- fit2 %>%
     fun = "pct",
     risk.table = TRUE,
     size = 1,
-    linetype = "strata",
     palette= c("#f7022a", 
                "#1cbaa4",
                "#E7B800",
@@ -625,17 +635,12 @@ plot_fit2 <- fit2 %>%
     legend.labs = c("I", "II", "III", "IV"))
 ```
 
-According to the Kaplan-Meier plot (plot_fit2),
-there is a clear correlation between the baseline aortic gradient level and the survival results. 
-In population level, the lower baseline gradient the subject suffered, 
-the lower risk rate and the longer of the median survival time.
-
 ```{r fig.height=8, fig.width=15}
 plot_fit2
 ```
 
 ```{r}
-fit2
+fit2 
 ```
 
 \newpage
@@ -643,15 +648,17 @@ fit2
 ### d. fit a cox model and only use operation 
 
 Based on the Cox proportional hazard model (cox1), 
-the operation type does not have a significant effect on the patient's survival time (p = 0.37). 
+the operation type does not have a significant effect on the patient's survival time (p = 0.68). 
 We cannot reject the null hypothesis. 
 According to the model, the log risk rate will decrease 0.037, 
-which is equivalent to 0.9635 (95% CI: 0.8875, 1.046) fold lower risk, 
+which is equivalent to 0.9482 (95% CI: 0.7341, 1.225) fold lower risk, 
 for patient in SI operation than the RR operation. 
 ```{r}
+aort1 <- aort1 %>% filter(time == 0)
 cox1 <- coxph(surobj ~ type_op, 
               data = aort1)
 summary(cox1)
+tidy(cox1) %>% knitr::kable("simple", align = "c")
 ```
 
 
@@ -664,29 +671,34 @@ the colored dashed lines represent the Kaplan-Meier curves,
 and the grey solid lines represent the Cox predict curves.
 Due to no cross-over for different operation types and seemingly constant decreasing on survival rate. 
 The Cox model is reasonable to be used for the model fitting. 
-However due to the constant hazard ratio assumption for cox model, 
-certain violations on the assumption for different operational type might happened. 
-There is a shrinkage effect toward the mean of the overall survival trend.
+However due to the constant hazard ratio assumption for Cox model, 
+at particular period of time, certain violations on the assumption for different operational type might happened. 
 ```{r fig.height=3, fig.width=9}
 aort4 <- aort1 %>%
   mutate(coxsur = predict(cox1, type = "survival"))
 
-plot_cox <- autoplot(fit1, data = aort1,
-                     surv.size = 1,
-                     surv.linetype = "dashed",
-                     censor = FALSE) +
+plot_cox <- 
+  ## KM curve plotted by autoplot
+  autoplot(fit1,
+           data = aort1,
+           surv.size = 1,
+           surv.linetype = "dashed",
+           censor = FALSE) +
+  ## add predict cox model values
   geom_line(data = aort4,
-            aes(ev_time, coxsur, 
+            aes(ev_time, 
+                coxsur,
                 group = type_op,
                 linetype = type_op),
             color = "black",
             alpha = 0.50,
             size = 1) +
   scale_colour_hue(l = 45, c = 200) +
-  theme_classic() 
+  theme_classic()
 
 plot_cox
 ```
+
 
 \newpage
    
@@ -696,13 +708,13 @@ plot_cox
 According to model cox2, both operation types and the baseline aortic gradient levels 
 can significantly affect the subject survival time (pvalue << 0.001). 
 In population level, on average, patients with the SI operation will
-experience 0.512 decreasing on log risk rate than RR operation;
-in another words, the risk rate will decrease to 0.600 (95% CI: 0.546, 0.658) fold 
+experience 0.437 decreasing on log risk rate than RR operation;
+in another words, the risk rate will decrease to 0.646 (95% CI: 0.485, 0.859) fold 
 in SI patients than RR patients. 
 
 SI patients can enjoy a better survival time. 
 Also, on average, every unit increase on baseline sqrt aortic gradient level will 
-cause increase of risk rate to 1.733 (95% CI: 1.656, 1.814) folds. 
+cause increase of risk rate to 1.567 (95% CI: 1.363, 1.802) folds. 
 This indicates that the patients with higher baseline aortic gradient suffer higher risk of event.
 ```{r}
 aort5 <- aort3 %>% 
@@ -710,10 +722,21 @@ aort5 <- aort3 %>%
 
 cox2 <- coxph(surobj ~ type_op + basesqrt, 
               data = aort5)
-tidyc2 <- broom.mixed::tidy(cox2)
+tidyc2 <- broom.mixed::tidy(cox2) 
 ```
 
 ```{r}
-summary(cox2)
+summary(cox2) 
+tidyc2 %>% knitr::kable("simple", align = "c")
+```
+
+```{r}
+glance_c1 <- glance(cox1)
+glance_c2 <- glance(cox2)
+
+rbind(glance_c1, glance_c2) %>%
+  select(AIC, BIC, logLik) %>%
+  rownames_to_column("models") %>%
+  knitr::kable("simple", align = "c")
 ```
 
