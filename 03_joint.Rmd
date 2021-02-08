@@ -3,6 +3,9 @@ title: "03_joint_model"
 author: "Randy"
 date: "1/28/2021"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +16,6 @@ library(JM)
 
 library(broom.mixed)
 ```
-
 
 ```{r}
 lme_p1 <- lme(log(serBilir) ~ year + drug:year,
@@ -26,7 +28,6 @@ summary(lme_p1)
 # broom.mixed::tidy(lme_p1)
 # broom.mixed::glance(lme_p1)
 ```
-
 
 ```{r}
 mcov_p1 <- getVarCov(lme_p1,
@@ -67,7 +68,6 @@ contrast
 
 ```
 
-
 ```{r}
 lme_p2 <- lme(log(serBilir) ~ year + drug:year, 
               ## with a diagnoal covariance matrix
@@ -92,18 +92,21 @@ lme_y2 <- lme(log(serBilir) ~ bs(year),
 summary(lme_y2)
 ```
 
-for the joint model, the parameters number, including in the linear predictor and in the 
-model for baseline hazard should be 1/10 and 1/20 of the total number of events in the sample.
+for the joint model, the parameters number, including in the linear
+predictor and in the model for baseline hazard should be 1/10 and 1/20
+of the total number of events in the sample.
 
 the number of spline coefficients m\
 the degree of B-spline basis function q\
 the number of interior knots n\
 m = n + q - 1\
 
-increasing the number of knots can increase the flexibility,
-but keep a balance between bias and variance and avoid overfitting.\
+increasing the number of knots can increase the flexibility, but keep a
+balance between bias and variance and avoid overfitting.\
 
-after the number of knots decided, the location depends on the percentiles of censor and event times.
+after the number of knots decided, the location depends on the
+percentiles of censor and event times.
+
 ```{r}
 lme_y3 <- lme(log(serBilir) ~ bs(year, knots = c(2, 5)), 
               random = list(id = pdDiag(form = ~ bs(year, knots = c(2, 5)))),
@@ -111,7 +114,6 @@ lme_y3 <- lme(log(serBilir) ~ bs(year, knots = c(2, 5)),
 summary(lme_y3)
 ?bs
 ```
-
 
 ```{r}
 lme_y4 <- lme(log(serBilir) ~ bs(year, 
@@ -149,21 +151,23 @@ td_cox$coefficients[[2]] %>% exp()
 ## to 82.41% of the chance
 ```
 
-
 ```{r}
 aids_id <- aids[!duplicated(aids$patient), ]
 ```
 
-we need to elaborate specification of time structures in the time effect for longitudinal submodel. possibly the interactions between the postulated time structure and baseline covariates.
+we need to elaborate specification of time structures in the time effect
+for longitudinal submodel. possibly the interactions between the
+postulated time structure and baseline covariates.
 
-1. consider flexible representations for high order polynomials and splines.
-2. incorporate an additional stochastic term
+1.  consider flexible representations for high order polynomials and
+    splines.
+2.  incorporate an additional stochastic term
 
-to capture the remaining serial correlation in the observed measurements.
-for example: Ornstein-Uhlenbeck process, and latent stationary Gaussian process\
+to capture the remaining serial correlation in the observed
+measurements. for example: Ornstein-Uhlenbeck process, and latent
+stationary Gaussian process\
 
 it is advisable to opt for either 1 or 2; but not necessary for both.
-
 
 ```{r}
 lme_aids <- lme(CD4 ~ obstime + obstime:drug,
@@ -194,33 +198,120 @@ summary(joint_aids)
 # str(joint_aids)
 ```
 
-the parameter labeled "Assoct" is the alpha;
-the association between mi(t) and the risk for death.
+the parameter labeled "Assoct" is the alpha; the association between
+mi(t) and the risk for death.
 
-the xi.. are the epslion parameters for piecewise-constant baseline risk function.
+the xi.. are the epslion parameters for piecewise-constant baseline risk
+function.
 
-comparison to the cox extended model, we clearly see non-negligible differences. 
+comparison to the cox extended model, we clearly see non-negligible
+differences.
 
 $$ h_{0} (t) = \sum^Q_{q=1} \xi_{q} I(v_{q-1} < t< v_q) \ \ \ \ \ (4.3)$$
 $$log \ h_0(t) = \kappa_0 + \sum^m_{d=1}\kappa_dB_d(t,q)\ \ \ \ \ (4.4)$$
 
-$$
-\begin{cases}
-y_i(t) = m_i(t) + \epsilon_i(t),\\
-m_i(t) = x_i^T(t)\beta + z__i^T(t)b_i,\\
-b_i ~ N(0, D),\\
-\epsilon_i ~ N(0, \sigma^2)
-\end{cases}
-$$
-
-
+$$ \begin{cases}
+  y_i(t) = m_i(t) + \epsilon_i(t) \\ 
+  m_i(t) = x_i^T(t)\beta + z_i(t)b_i \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ (4.5)\\ 
+  b_i \sim N(0, D) \\ 
+  \epsilon_i \sim N(0, \sigma^2) 
+\end{cases} $$
 
 for stochastic process independent of $b_i$, $\epsilon_i$:
 $$y_i(t) = m_i(t) + u_i(t) + \epsilon_i(t) \ \ \ \ \ (4.6)$$
 
-currently the `r package::JM()` only works with linear mixed effects submodels with iid error terms and no serial correlation structures as in 
+currently the `r package::JM()` only works with linear mixed effects
+submodels with iid error terms and no serial correlation structures as (4.6)
+
+cannot add a correlation structure (correlation argument)
+or a variance function (weights argument)
+
+regarding to the covariance matrix of the random effects, 
+by default `r JM::jointModel()` assumes it to be unstructured.
+
+it also allows for a diagonal covariance matrix, 
+which can be specified using function pdDiag() in the random argument of lme().
+
+
+```{r}
+joint_aids_gh <-
+  JM::jointModel(
+    lmeObject = lme_aids,
+    survObject = cox_aids,
+    ## required in internal computation of mi(t)
+    ## the true value of the time-dependent-varying
+    timeVar = "obstime",
+    ## the type of baseline risk function
+    ## assumed to be piecewise constant
+    method = "piecewise-PH-GH")
+summary(joint_aids_gh)
+```
 
 
 
+
+```{r}
+joint_aids_aft_wb <-
+  JM::jointModel(
+    lmeObject = lme_aids,
+    survObject = cox_aids,
+    ## required in internal computation of mi(t)
+    ## the true value of the time-dependent-varying
+    timeVar = "obstime",
+    ## the type of baseline risk function
+    ## assumed to be piecewise constant
+    method = "piecewise-AFT_GH")
+summary(joint_aids_aft_wb)
+```
+
+
+the main estimation methods for joint models is the semiparametric maximum likelihood.
+this semi-MLE has asymptotic properties under an unspecified baseline risk function.
+
+joint distribution of the observed outcomes ${T_i, \ \delta_i,\  y_i}$.
+
+conditional on the random effects which independent of time.
+random effects acount for both the association between the longitudinal and event outcomes.
+
+$$ p(T_i, \delta_i, y_i; \theta) = p(T_i, \delta_i|b_i; \ \theta)p(y_i|b_i; \ \theta) \ \ \ (4.7)$$
+
+$$p(y_i|b_i; \ \theta) = \prod_jp\{ y_i(t_{ij})|b_i \ ; \theta\} \ \ \ \ \ \ \ (4.8)$$
+
+$\theta = (\theta_t^T, \theta_y^T, \theta_b^T)^T$
+the censoring mechanism and the visiting process are independent 
+of the true event times and future longitudinal measurements. \
+
+
+for any time point t, 
+we define as observed history all available information 
+for the longitudinal process prior to t. \
+
+imply the belief that decisions on whether a subject withdraws 
+from the study or appears at the clinic 
+for a longitudinal measurement depend 
+on the observed past history 
+(longitudinal measurements and baseline covariates),
+but there is no additional dependence on underlying, 
+latent subject characteristics associated with prognosis. 
+
+A setting in which these assumptions are violated is 
+when either of the two processes depends on the random effects. 
+
+This is because such a dependence implicitly corresponds to
+a dependence to future longitudinal measurements. 
+
+Evaluating the plausibility of the non-informativeness
+for the visiting and censoring processes usually requires 
+external information from subject-matter experts,
+since the observed data do not contain enough information
+to suggest otherwise
+
+if the score equations corresponding to (4.12) are solved 
+with respect to ??, with p(bi | Ti, ??i, yi; ??)
+fixed at the ?? value of the previous iteration, 
+then this corresponds to an EM algorithm, 
+whereas if the score equations are solved with respect 
+to ?? considering p(bi | Ti, ??i, yi; ??), also a function of ??,
+then this corresponds to a maximization of the observed data log-likelihood l(??).
 
 

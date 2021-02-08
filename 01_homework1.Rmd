@@ -3,7 +3,7 @@ title: "01_homework1"
 author: "Randy"
 date: "1/29/2021"
 output:
-  word_document: 
+  word_document:
     reference_docx: template.docx
 ---
 # BIOS7721 Homework1
@@ -525,8 +525,7 @@ plot_fit0 <- fit0 %>%
     conf.int = TRUE,
     fun = "pct",
     risk.table = TRUE,
-    size = 1,
-    linetype = "strata")
+    size = 1)
 
 plot_fit1 <- fit1 %>%
   survminer::ggsurvplot(

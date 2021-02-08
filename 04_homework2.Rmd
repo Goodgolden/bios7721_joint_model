@@ -266,6 +266,9 @@ boots	sexMale	    -0.2161467	0.2858354
 two-time	sqrt_ao  0.2645691	0.4400034
 boots	sqrt_aort_   0.2718825	0.4435482
 
+For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. 
+Hence, there will be a bias for the implementation that remove all the measurement errors for unbiased predictors, which produce biased results by empirical Bayesian estimates from random effects.
+
 ```{r message=FALSE, warning=FALSE}
 set.seed(555)
 get_coef <- function(formula, data, indices) {
@@ -331,7 +334,7 @@ confint(cox2) %>%
 
 \newpage
 
-### d. comparation 
+### d. comparision 
 * the two-stage model and the time-varying covariate model 
 * comment on any differences 
 * why these differences may exist
@@ -340,7 +343,7 @@ Overall these two models are pretty similar to each other. Comparatively, the tw
 
 The Cox extended model use step function approximation for the time dependent covariate,
 which measured without error. This may introduce bias to the estimates and standard error.\
-
+These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
 
 ```{r}
 rbind(tidy1, tidy2) %>%
