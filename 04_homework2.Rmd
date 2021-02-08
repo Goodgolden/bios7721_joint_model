@@ -44,8 +44,7 @@ R.Version()
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
-  message = FALSE,
-  cache = TRUE)
+  message = FALSE)
 ```
 
 ## Introduction
