@@ -7,13 +7,17 @@ output:
     reference_docx: template.docx
   
 ---
+these notes are directly from  the textbook:\
+"Joint Models for Longitudinal and Time-to-Event Data With Applications in R"\
+by Dimitris Rizopoulos\
+CRC Press/Taylor & Francis Group/A Chapman & Hall Book\
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(survival)
 library(JM)
-
 library(broom.mixed)
 ```
 
@@ -35,10 +39,9 @@ mcov_p1 <- getVarCov(lme_p1,
                      ## type: "random effects",
                      ## "conditional"
                      type = "marginal")
-mcov_p1 
 
-cov2cor(mcov_p1[[1]])
-cov2cor(mcov_p1[[5]])
+cov_p1_1 <- cov2cor(mcov_p1[[1]])
+cov_p1_2 <- cov2cor(mcov_p1[[5]])
 ```
 
 ```{r}
@@ -208,7 +211,7 @@ comparison to the cox extended model, we clearly see non-negligible
 differences.
 
 $$ h_{0} (t) = \sum^Q_{q=1} \xi_{q} I(v_{q-1} < t< v_q) \ \ \ \ \ (4.3)$$
-$$log \ h_0(t) = \kappa_0 + \sum^m_{d=1}\kappa_dB_d(t,q)\ \ \ \ \ (4.4)$$
+$$ log \ h_0(t) = \kappa_0 + \sum^m_{d=1}\kappa_dB_d(t,q)\ \ \ \ \ (4.4)$$
 
 $$ \begin{cases}
   y_i(t) = m_i(t) + \epsilon_i(t) \\ 
@@ -218,7 +221,7 @@ $$ \begin{cases}
 \end{cases} $$
 
 for stochastic process independent of $b_i$, $\epsilon_i$:
-$$y_i(t) = m_i(t) + u_i(t) + \epsilon_i(t) \ \ \ \ \ (4.6)$$
+$$ y_i(t) = m_i(t) + u_i(t) + \epsilon_i(t) \ \ \ \ \ (4.6) $$
 
 currently the package::JM() only works with linear mixed effects
 submodels with iid error terms and no serial correlation structures as (4.6)
@@ -286,6 +289,7 @@ $$ p(T_i, \delta_i, y_i; \theta) = p(T_i, \delta_i|b_i; \ \theta)p(y_i|b_i; \ \t
 $$p(y_i|b_i; \ \theta) = \prod_jp\{ y_i(t_{ij})|b_i \ ; \theta\} \ \ \ \ \ \ \ (4.8)$$
 
 $\theta = (\theta_t^T, \theta_y^T, \theta_b^T)^T$
+
 the censoring mechanism and the visiting process are independent 
 of the true event times and future longitudinal measurements. \
 

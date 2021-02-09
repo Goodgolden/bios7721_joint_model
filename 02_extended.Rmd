@@ -7,7 +7,7 @@ output:
   word_document:
     reference_docx: template.docx
 ---
-this notes are from  the textbook:\
+these notes are directly from  the textbook:\
 "Joint Models for Longitudinal and Time-to-Event Data With Applications in R"\
 by Dimitris Rizopoulos\
 CRC Press/Taylor & Francis Group/A Chapman & Hall Book\
