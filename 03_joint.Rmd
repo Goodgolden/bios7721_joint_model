@@ -7,13 +7,17 @@ output:
     reference_docx: template.docx
   
 ---
+these notes are directly from  the textbook:\
+"Joint Models for Longitudinal and Time-to-Event Data With Applications in R"\
+by Dimitris Rizopoulos\
+CRC Press/Taylor & Francis Group/A Chapman & Hall Book\
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(survival)
 library(JM)
-
 library(broom.mixed)
 ```
 
@@ -286,6 +290,7 @@ $$ p(T_i, \delta_i, y_i; \theta) = p(T_i, \delta_i|b_i; \ \theta)p(y_i|b_i; \ \t
 $$p(y_i|b_i; \ \theta) = \prod_jp\{ y_i(t_{ij})|b_i \ ; \theta\} \ \ \ \ \ \ \ (4.8)$$
 
 $\theta = (\theta_t^T, \theta_y^T, \theta_b^T)^T$
+
 the censoring mechanism and the visiting process are independent 
 of the true event times and future longitudinal measurements. \
 
