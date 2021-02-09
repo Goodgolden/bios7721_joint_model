@@ -100,11 +100,11 @@ anova(cox_pro2, cox_pro, test = FALSE)
 #                         method = "piecewise-PH-aGH")
 # joint_pro2 <- update(joint_pro, lag = 2)
 # 
-# save(joint_pro, file = "joint_pro_20210208")
-# save(joint_pro2, file = "joint_pro2_20210208")
+# save(joint_pro, file = "joint_pro_20210208.Rdata")
+# save(joint_pro2, file = "joint_pro2_20210208.Rdata")
 # 
-load("joint_pro_20210208")
-load("joint_pro2_20210208")
+load("joint_pro_20210208.Rdata")
+load("joint_pro2_20210208.Rdata")
 ```
 
 
