@@ -53,7 +53,6 @@ knitr::opts_chunk$set(
 * subcoronary implantation (SI) or root replacement (RR)
 * followed over time and longitudinal aortic gradient measurements 
 * at risk of experiencing death following their surgery
-
 ```{r}
 aort <- here::here("aort_new.csv") %>% 
   read_csv() %>%
@@ -75,7 +74,6 @@ aort <- here::here("aort_new.csv") %>%
 * the last indicator is 1 if an event is observed
 * the last indicator is 0 if a patient is censored
 * print the rows for Patients 1 and 2.
-
 ```{r}
 aort1 <- aort %>%
   ## tmerge cannot bear duplicate id
@@ -142,8 +140,9 @@ plot_id3
 * operation type and sex as a time-independent baseline covariate
 * interpret the coefficient estimates
 * how it is the different from model with only the baseline values?
+
+\break
 The aortic gradient level can significantly affect 
-\
 the subject's survival status (p << 0.001).
 On average, one unit increase on the sqrt of aortic gradient 
 can increase the risk of event to 1.5 folds (95% CI 1.39 1.62).\
@@ -173,12 +172,14 @@ tidy1 <- tidy(cox1) %>%
 glance0 <- glance(cox0)
 glance1 <- glance(cox1)
 ```
-\break
+---
+
 ```{r}
 summary(cox0)
 summary(cox1)
 ```
-\break
+---
+
 ```{r}
 rbind(glance0, glance1) %>%
   tibble() %>%
@@ -211,11 +212,11 @@ Therefore, extended Cox model is not appropriate, or at least not the optimal me
 * interpret the coefficient estimates from this model
 
 ```{r}
-lme1 <- nlme::lme(sqrt_aort_grad ~ oper + sex + tstart, 
+lme1 <- nlme::lme(sqrt_aort_grad ~ 
+                    oper + sex + tstart, 
                   random = (~ 1 + tstart | id),
                   data = aort1)
 summary(lme1)
-tidy(lme1)
 ```
 As seen in model lme1, time has a very highly significant effect on
 the level of aortic gradient level (p << 0.001); 
@@ -235,7 +236,6 @@ We can see that the variability for within individual is still pretty high time 
 * use as a time-varying covariate in a Cox survival model
 * Cox model includes operation type and sex as time independent baseline covariates
 * interpret the coefficient estimates from this model
-
 ```{r}
 ## why this is subject specific? this is marginal
 aort1$sqrt_aort_pred <- c(predict(lme1))
@@ -256,22 +256,20 @@ summary(cox2)
 * the differences from the standard errors estimated in the model2? 
 * reasons of differences between two methods for inference?
 
-
-model	term	       2.5 %    	97.5 %
-two-time	operSI	-0.6356173	-0.0966928
-boots	operSI    	-0.7919904	-0.2997002
-two-time	sexMale	-0.3683776	0.1460658
-boots	sexMale	    -0.2161467	0.2858354
-two-time	sqrt_ao  0.2645691	0.4400034
-boots	sqrt_aort_   0.2718825	0.4435482
-
 For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. 
-Hence, there will be a bias for the implementation that remove all the measurement errors for unbiased predictors, which produce biased results by empirical Bayesian estimates from random effects.
+Hence, there will be a bias for the implementation that remove all the measurement errors for unbiased predictors, which produce biased results by empirical Bayesian estimates from random effects. The partial likelihood asymptotic feature will no hold anymore. Hence the bootstrapping results have smaller standard errors and confidence interval.
 
 ```{r message=FALSE, warning=FALSE}
 set.seed(555)
-get_coef <- function(formula, data, indices) {
-  formula <- as.formula(formula)
+
+#' get_coef() to extract the coef from one bootstrap
+#'
+#' @param data the dataset for bootstrap
+#' @param indices a placeholder for the map function
+#' @return the coefs from the model fitting
+#' @examples
+#' get_coef(aort1, 1)
+get_coef <- function(data, indices) {
   data1 <- data %>%
     group_by(id) %>%
     nest() %>%
@@ -281,55 +279,86 @@ get_coef <- function(formula, data, indices) {
                   replace =TRUE)
   data2 <- data1[index, ] %>%
     unnest()
-  lmm <- lme(sqrt_aort_grad ~ oper + sex + tstart, 
+  lmm <- lme(sqrt_aort_grad ~ 
+               oper + sex + tstart, 
              random = (~ 1 + tstart | id),
              data = data2)
   data2$sqrt_aort_pred <- c(predict(lmm))
-  fit1 <- coxph(formula, 
+  fit1 <- coxph(survobj ~ 
+                  oper + sex + sqrt_aort_pred, 
                data = data2)
   return(coef(fit1))
 }
 
-cox_boots <- boot::boot(
-  data = aort1,
-  statistic = get_coef,
-  R = 1000,
-  formula = "survobj ~ oper + sex + sqrt_aort_pred")
+## bootstrapping takes too long time
+## load .Rdata file to see the result directly
+# cox_boot <- 
+#   ## repeat 1000 times coxph
+#   map_df(.x = 1:1000, 
+#          .f = ~get_coef(
+#            data = aort1,
+#            indices = .x))
+#            
+# save(cox_boot, file = "cox_boot_20210207.Rdata")
+
+## upload the .Rdata for convinence
+load("cox_boot_20210207.Rdata")
 ```
+---
 
 ```{r}
-get_boot <- function(bootstrap, index) {
-  boot <- boot.ci(bootstrap, 
-                  type = "norm",
-                  index = index)
-  boot <- boot$norm %>%
-    as.data.frame() %>%
-    mutate(coef = as.numeric(boot$t0)) %>%
-    select(coef, -conf, 
-           "lower .95" = V2, 
-           "upper .95" = V3)
-
-  return(boot)
-}
-
-boot1 <- map_df(.x = 1:3, ~ get_boot(cox_boots, index = .x)) %>%
-  transmute(`2.5 %` = `lower .95`,
-            `97.5 %` = `upper .95`) %>%
-  rownames_to_column("term") %>%
-  mutate(model = "boots") %>%
-  as.data.frame()
-
-confint(cox2) %>% 
-  as.data.frame() %>%
-  mutate(model = "two-time") %>%
-  rownames_to_column("term") %>%
-  rbind(boot1) %>%
-  select(model, everything()) %>%
-  arrange(term) %>%
-  knitr::kable("simple", align = "c")
-  
+tidy(cox2) %>%
+  mutate(boot.estimate = as.numeric(map(cox_boot, mean)),
+         boot.std.error = as.numeric(map(cox_boot, sd))) %>%
+  select(term, estimate, boot.estimate,
+         std.error, boot.std.error) %>%
+  knitr::kable()
 ```
 
+```{r eval=FALSE, include=FALSE}
+## old bootstrapping code
+## use boot::boot function
+## not sure how it works
+# cox_boots <- 
+#   boot::boot(
+#   data = aort1,
+#   statistic = get_coef,
+#   R = 1000)
+#   
+## export the results from boot structure
+# get_boot <- function(bootstrap, index) {
+#   boot <- boot.ci(bootstrap, 
+#                   type = "norm",
+#                   index = index)
+#   boot <- boot$norm %>%
+#     as.data.frame() %>%
+#     mutate(coef = as.numeric(boot$t0)) %>%
+#     select(coef, -conf, 
+#            "lower .95" = V2, 
+#            "upper .95" = V3)
+# 
+#   return(boot)
+# }
+# 
+## extract the final results
+# boot1 <- map_df(.x = 1:3, 
+#                 ~ get_boot(cox_boots, 
+#                 index = .x)) %>%
+#   transmute(`2.5 %` = `lower .95`,
+#             `97.5 %` = `upper .95`) %>%
+#   rownames_to_column("term") %>%
+#   mutate(model = "boots") %>%
+#   as.data.frame()
+#   
+# confint(cox2) %>%
+#   as.data.frame() %>%
+#   mutate(model = "two-time") %>%
+#   rownames_to_column("term") %>% View()
+#   rbind(boot1) %>%
+#   select(model, everything()) %>%
+#   arrange(term) %>%
+#   knitr::kable("simple", align = "c")
+```
 
 \newpage
 

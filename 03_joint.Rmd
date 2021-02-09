@@ -2,10 +2,10 @@
 title: "03_joint_model"
 author: "Randy"
 date: "1/28/2021"
-output: html_document
-editor_options: 
-  markdown: 
-    wrap: 72
+output:
+  word_document: 
+    reference_docx: template.docx
+  
 ---
 
 ```{r setup, include=FALSE}
@@ -112,7 +112,6 @@ lme_y3 <- lme(log(serBilir) ~ bs(year, knots = c(2, 5)),
               random = list(id = pdDiag(form = ~ bs(year, knots = c(2, 5)))),
               data = pbc2)
 summary(lme_y3)
-?bs
 ```
 
 ```{r}
@@ -179,7 +178,9 @@ cox_aids <- coxph(Surv(Time, death) ~ drug,
                   data = JM::aids.id, 
                   model = TRUE,
                   x = TRUE)
+```
 
+```{r}
 # joint_aids <- 
 #   JM::jointModel(
 #     lmeObject = lme_aids, 
@@ -191,7 +192,6 @@ cox_aids <- coxph(Surv(Time, death) ~ drug,
 #     ## assumed to be piecewise constant
 #     method = "piecewise-PH-aGH")
 # save(joint_aids, file = "joint_aids.Rdata")
-
 
 load("joint_aids.Rdata")
 summary(joint_aids)
@@ -220,30 +220,34 @@ $$ \begin{cases}
 for stochastic process independent of $b_i$, $\epsilon_i$:
 $$y_i(t) = m_i(t) + u_i(t) + \epsilon_i(t) \ \ \ \ \ (4.6)$$
 
-currently the `r package::JM()` only works with linear mixed effects
+currently the package::JM() only works with linear mixed effects
 submodels with iid error terms and no serial correlation structures as (4.6)
 
 cannot add a correlation structure (correlation argument)
 or a variance function (weights argument)
 
 regarding to the covariance matrix of the random effects, 
-by default `r JM::jointModel()` assumes it to be unstructured.
+by default JM::jointModel() assumes it to be unstructured.
 
 it also allows for a diagonal covariance matrix, 
 which can be specified using function pdDiag() in the random argument of lme().
 
 
 ```{r}
-joint_aids_gh <-
-  JM::jointModel(
-    lmeObject = lme_aids,
-    survObject = cox_aids,
-    ## required in internal computation of mi(t)
-    ## the true value of the time-dependent-varying
-    timeVar = "obstime",
-    ## the type of baseline risk function
-    ## assumed to be piecewise constant
-    method = "piecewise-PH-GH")
+# joint_aids_gh <-
+#   JM::jointModel(
+#     lmeObject = lme_aids,
+#     survObject = cox_aids,
+#     ## required in internal computation of mi(t)
+#     ## the true value of the time-dependent-varying
+#     timeVar = "obstime",
+#     ## the type of baseline risk function
+#     ## assumed to be piecewise constant
+#     method = "piecewise-PH-GH")
+# 
+# save(joint_aids_gh, file = "joint_aids_gh_20210207.Rdata")
+
+load("joint_aids_gh_20210207.Rdata")
 summary(joint_aids_gh)
 ```
 
@@ -251,16 +255,20 @@ summary(joint_aids_gh)
 
 
 ```{r}
-joint_aids_aft_wb <-
-  JM::jointModel(
-    lmeObject = lme_aids,
-    survObject = cox_aids,
-    ## required in internal computation of mi(t)
-    ## the true value of the time-dependent-varying
-    timeVar = "obstime",
-    ## the type of baseline risk function
-    ## assumed to be piecewise constant
-    method = "piecewise-AFT_GH")
+# joint_aids_aft_wb <-
+#   JM::jointModel(
+#     lmeObject = lme_aids,
+#     survObject = cox_aids,
+#     ## required in internal computation of mi(t)
+#     ## the true value of the time-dependent-varying
+#     timeVar = "obstime",
+#     ## the type of baseline risk function
+#     ## assumed to be piecewise constant
+#     method = "weibull-AFT-GH")
+# 
+# save(joint_aids_aft_wb, file = "joint_aids_aft_wb_20210207.Rdata")
+
+load("joint_aids_aft_wb_20210207.Rdata")
 summary(joint_aids_aft_wb)
 ```
 
@@ -313,5 +321,66 @@ then this corresponds to an EM algorithm,
 whereas if the score equations are solved with respect 
 to ?? considering p(bi | Ti, ??i, yi; ??), also a function of ??,
 then this corresponds to a maximization of the observed data log-likelihood l(??).
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics('img/4_10.png')
+knitr::include_graphics('img/4_11.png')
+knitr::include_graphics('img/4_12.png')
+knitr::include_graphics('img/4_12_1.png')
+knitr::include_graphics('img/4_12_2.png')
+```
+
+standard errors and inference for the regression coefficients of 
+the (extended) Cox model enjoy nice asymptotic properties similar 
+to those of asymptotic maximum likelihood theory, 
+without having to specify an appropriate baseline risk function 
+
+Unfortunately, under the joint modeling framework this nice feature is not carried over
+
+a full likelihood approach must be employed instead.
+
+In order for profile likelihood asymptotic to work, 
+this nonparametric maximum likelihood estimator should not depend on h0(t)
+
+Unfortunately, however, this is not the case under joint models 
+because this estimator has no closed-form solution due to the use of random effects.
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics('img/4_12_3.png')
+knitr::include_graphics('img/4_12_4.png')
+```
+
+A feasible alternative is to postulate a flexible but parametric model for h0(t). 
+1. they can be made arbitrarily flexible 
+by increasing the number of internal knots, 
+and thus capture various shapes of h0(t)\
+2. under such models, estimation of standard errors directly follows 
+from asymptotic maximum likelihood theory\
+
+
+
+```{r}
+anova(joint_aids, joint_aids_gh)
+```
+
+
+
+
+```{r}
+anova(joint_aids, process = "Longitudinal")
+anova(joint_aids, process = "Event", L = diag(2))
+anova(joint_aids_aft_wb, process = "Longitudinal")
+anova(joint_aids_aft_wb, process = "Event", L = diag(3))
+anova(joint_aids_gh, process = "Longitudinal")
+anova(joint_aids_gh, process = "Event", L = diag(2))
+```
+
+```{r}
+pwc <- piecewiseExp.ph(cox_aids)
+pwc$coefficients
+```
+
+
+
 
 
