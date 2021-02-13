@@ -404,7 +404,7 @@ tidy(cox2) %>%
 
 Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error; the two stage model can reduce bias compared to the Cox extended model. However, the overall performance of two-stage model is superior than the extended model; this might due to the individual biomarker level varies in a large range within subjects (possible larger than the between-subject variations). This information of error residual variability in the mixed model is not passed into the Cox proportional hazard model, which might cause the ill performance of two-stage model. More flex
 
-The Cox extended model use step function approximation for the time dependent covariate, assuming measured without error. This may introduce bias to the estimates and standard error. These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
+The Cox extended model uses step function approximation for the time dependent covariate, assuming measured without error. This may introduce bias to the estimates and standard error. These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
 
 ```{r}
 rbind(tidy1, tidy2) %>%
