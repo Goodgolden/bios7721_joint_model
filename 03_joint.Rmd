@@ -184,16 +184,16 @@ cox_aids <- coxph(Surv(Time, death) ~ drug,
 ```
 
 ```{r}
-# joint_aids <- 
-#   JM::jointModel(
-#     lmeObject = lme_aids, 
-#     survObject = cox_aids,
-#     ## required in internal computation of mi(t)
-#     ## the true value of the time-dependent-varying
-#     timeVar = "obstime",
-#     ## the type of baseline risk function
-#     ## assumed to be piecewise constant
-#     method = "piecewise-PH-aGH")
+joint_aids <-
+  JM::jointModel(
+    lmeObject = lme_aids,
+    survObject = cox_aids,
+    ## required in internal computation of mi(t)
+    ## the true value of the time-dependent-varying
+    timeVar = "obstime",
+    ## the type of baseline risk function
+    ## assumed to be piecewise constant
+    method = "piecewise-PH-aGH")
 # save(joint_aids, file = "joint_aids.Rdata")
 
 load("joint_aids.Rdata")

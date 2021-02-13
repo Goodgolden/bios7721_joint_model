@@ -30,6 +30,7 @@ library(gtsummary)
 ## software information
 sessionInfo()
 R.Version()
+
 ```
 
 ```{r setup, include=FALSE}

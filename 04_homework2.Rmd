@@ -6,6 +6,7 @@ output:
   word_document: 
     reference_docx: template.docx
 ---
+
 # BIOS7721 Homework2
 
 ```{r package, include=FALSE}
@@ -48,11 +49,13 @@ knitr::opts_chunk$set(
 ```
 
 ## Introduction
-* dataset contains 500 patients
-* human tissue valve in aortic position
-* subcoronary implantation (SI) or root replacement (RR)
-* followed over time and longitudinal aortic gradient measurements 
-* at risk of experiencing death following their surgery
+
+-   dataset contains 500 patients
+-   human tissue valve in aortic position
+-   subcoronary implantation (SI) or root replacement (RR)
+-   followed over time and longitudinal aortic gradient measurements
+-   at risk of experiencing death following their surgery
+
 ```{r}
 aort <- here::here("aort_new.csv") %>% 
   read_csv() %>%
@@ -67,13 +70,15 @@ aort <- here::here("aort_new.csv") %>%
 ## Question1. Survival analysis with a time-varying covariate
 
 ### a. create the start/stop time data set
-* the beginning of a time interval represents a measurement time
-* the end of the final time window represents the survival time
-* You also need a new status indicator 
-* indicator value of 0 for all intervals 
-* the last indicator is 1 if an event is observed
-* the last indicator is 0 if a patient is censored
-* print the rows for Patients 1 and 2.
+
+-   the beginning of a time interval represents a measurement time
+-   the end of the final time window represents the survival time
+-   You also need a new status indicator
+-   indicator value of 0 for all intervals
+-   the last indicator is 1 if an event is observed
+-   the last indicator is 0 if a patient is censored
+-   print the rows for Patients 1 and 2.
+
 ```{r}
 aort1 <- aort %>%
   ## tmerge cannot bear duplicate id
@@ -108,9 +113,11 @@ aort1 %>%
 
 \newpage
 
-### b. for patient 3 create a stepped line plot 
-* square root aortic gradient
-* vertical dashed line for patient's observed survival time
+### b. for patient 3 create a stepped line plot
+
+-   square root aortic gradient
+-   vertical dashed line for patient's observed survival time
+
 ```{r fig.height=3, fig.width=6}
 aort1_id3 <- aort1 %>%
   filter(id == 3) 
@@ -135,33 +142,27 @@ plot_id3
 
 \newpage
 
-### c. fit an extended Cox survival model 
-* square root aortic gradient as a time-varying covariate
-* operation type and sex as a time-independent baseline covariate
-* interpret the coefficient estimates
-* how it is the different from model with only the baseline values?
+### c. fit an extended Cox survival model
+
+-   square root aortic gradient as a time-varying covariate
+-   operation type and sex as a time-independent baseline covariate
+-   interpret the coefficient estimates
+-   how it is the different from model with only the baseline values?
 
 \break
-The aortic gradient level can significantly affect 
-the subject's survival status (p << 0.001).
-On average, one unit increase on the sqrt of aortic gradient 
-can increase the risk of event to 1.5 folds (95% CI 1.39 1.62).\
-After adjusted for the biomarker aortic gradient, 
-the effect of operation type on survival becomes on significant, 
-and effect size exp(operation) changes from 0.95 fold to 0.67; 
-given patient's aort gradient level, operation SI has stronger effects
-on survival improvement for certain patient.\
-Also the adjustment of biomarker revert the effect of gender, 
-from increasing risk of event to decreasing risk of event, 
-even though neither of model show these gender effects significant.\
-Overall the model performance gets improved in model cox1 (AIC = 2284);
-the AIC decreased, comparing to the baseline value model cox0 (AIC = 2400).
+
+Based on the model below, the aortic gradient level can significantly affect the subject's survival status (p \<\< 0.001). On average, one unit increase on the sqrt of aortic gradient can increase the risk of event to 1.5 folds (95% CI 1.39 1.62).\
+After adjusted for the biomarker aortic gradient, the effect of operation type on survival becomes highly significant (in cox1 model, p \< 0.01), and effect size of exp(operation) changes from 0.95 fold to 0.67; given patient's aort gradient level, the operation SI has stronger effects on survival improvement for certain patients.\
+Also the adjustment of biomarker flips the effect of gender, from increasing risk of event to decreasing risk of event, even though neither of model shows significant gender effect on patients' survival status.\
+Overall the model performance gets improved in model cox1 (AIC = 2284), of which AIC decreased, comparing to the baseline value model cox0 (AIC = 2400).
+
 ```{r}
 ## add the survobj into aort1 as part of dataset
 aort1$survobj <- with(aort1, Surv(tstart, tstop, death))
 cox0 <- coxph(survobj ~ oper + sex, 
               data = aort1)
-cox1 <- coxph(survobj ~ oper + sex + sqrt_aort_grad, 
+cox1 <- coxph(survobj ~ 
+                oper + sex + sqrt_aort_grad, 
               data = aort1)
 tidy0 <- tidy(cox0) %>%
   tibble() %>%
@@ -172,19 +173,22 @@ tidy1 <- tidy(cox1) %>%
 glance0 <- glance(cox0)
 glance1 <- glance(cox1)
 ```
----
+
+------------------------------------------------------------------------
 
 ```{r}
 summary(cox0)
 summary(cox1)
 ```
----
+
+------------------------------------------------------------------------
 
 ```{r}
 rbind(glance0, glance1) %>%
   tibble() %>%
   rownames_to_column("model") %>%
-  select(model, AIC, BIC, logLik) %>%
+  mutate(model = c("cox0", "cox1")) %>%
+  dplyr::select(model, AIC, BIC, logLik) %>%
   knitr::kable("simple", align = "c")
 ```
 
@@ -192,24 +196,19 @@ rbind(glance0, glance1) %>%
 
 ### d. comment on why it is not appropriate of the extended Cox model
 
-The extended Cox model assumptions is only valid 
-for exogenous time dependent covariates.
-However in this case, the aortic gradient level is a endogenous bio-marker, 
-the level of which closely related to failure status. \
-The biomarker level cannot be predetermined or totally immune to measurement errors.\ 
-Also for extended Cox model, we would assume that 
-the aortic gradient changes only at the measurement times and remain constant 
-between two measurements, as step-function approximation.\
-Therefore, extended Cox model is not appropriate, or at least not the optimal method.
+The extended Cox model assumptions is only valid for exogenous time dependent covariates. However in this case, the aortic gradient level is a endogenous biomarker, the level of which cannot be predetermined or totally immune to measurement errors. Hence there is no way we will not know the future status of this variable, the feature of which we have no idea with. \
+If we treat it as the exogenous variable, we would assume that the aortic gradient changes only at the measurement times and remain constant between two measurements, as step-function approximation, which is obvious highly impossible in the real world. Therefore, extended Cox model is not appropriate, or at least not the optimal method.
 
 \newpage
 
 ## Question2. Two stage model
-### a. fit a mixed effects model 
-* outcome: square root aortic gradient
-* fixed effects: linear time, operation type, and sex
-* random effects: intercept and linear slope for time
-* interpret the coefficient estimates from this model
+
+### a. fit a mixed effects model
+
+-   outcome: square root aortic gradient
+-   fixed effects: linear time, operation type, and sex
+-   random effects: intercept and linear slope for time
+-   interpret the coefficient estimates from this model
 
 ```{r}
 lme1 <- nlme::lme(sqrt_aort_grad ~ 
@@ -218,49 +217,68 @@ lme1 <- nlme::lme(sqrt_aort_grad ~
                   data = aort1)
 summary(lme1)
 ```
-As seen in model lme1, time has a very highly significant effect on
-the level of aortic gradient level (p << 0.001); 
-on average, every year will increase the subject's sqrt aortic gradient level 0.33 unit.
-Operation type SI can increase sqrt aortic gradient 0.737 compare to RR.
 
-There is some variability for each patient baseline aortic gradient level sd_(Intercept) = 0.934,
-and the random linear time effects sd_slope = 0.175. 
-The random intercept and random slope are not strongly related with each other.
-We can see that the variability for within individual is still pretty high time to time.
+As seen in model lme1, time has a very highly significant effect on the level of aortic gradient level (p \<\< 0.001); on average, the patients will suffer an increase the subject's sqrt aortic gradient level 0.33 unit yearly. Operation type SI also has a significant effect on this biomarker, which can increase sqrt aortic gradient 0.737 unit on sqrt level compare to RR.
 
+There is some variability for each patient baseline aortic gradient level, showing as sd\_(Intercept) = 0.934, and the random linear time effects sd_slope = 0.175. The random intercept and random slope are not strongly related with each other (Corr = -0.15). We can see that the variability for within individual is still pretty high time to time.
 
 \newpage
 
 ### b. the mixed effects model as subject-specific predictions
-* the contributions from the random intercept and random slope
-* use as a time-varying covariate in a Cox survival model
-* Cox model includes operation type and sex as time independent baseline covariates
-* interpret the coefficient estimates from this model
-```{r}
-## why this is subject specific? this is marginal
-aort1$sqrt_aort_pred <- c(predict(lme1))
 
-cox2 <- coxph(survobj ~ oper + sex + sqrt_aort_pred,
-                data = aort1)
+-   the contributions from the random intercept and random slope
+-   use as a time-varying covariate in a Cox survival model
+-   Cox model includes operation type and sex as time independent baseline covariates
+-   interpret the coefficient estimates from this model
+
+```{r}
+## why this is subject specific? 
+## this is marginal, right?
+## The uncertainty in our estimates 
+## from the first stage are not carried
+## through to the second stage
+aort1$sqrt_aort_pred <- c(predict(lme1))
+head(aort1) %>% knitr::kable("simple", align = "c")
+
+cox2 <- coxph(survobj ~ 
+                oper + sex + sqrt_aort_pred,
+              data = aort1,
+              x = TRUE)
+
 tidy2 <- tidy(cox2) %>%
   tibble() %>%
-  mutate(model = "two-time")
+  mutate(model = "two-stage")
 glance2 <- glance(cox2)
 summary(cox2)
+```
+
+As shown in model cox2, the aortic gradient level can significantly affect the subject's survival status (p \<\< 0.001). On average, one unit increase on the sqrt of aortic gradient can increase the risk of event to 1.422 folds (95% CI 1.30 1.55).\
+After adjusted for the biomarker aortic gradient, the effect of operation type on survival becomes highly significant (p \<\< 0.01); given patient's aort gradient level, the operation SI has significant benefit effects (p \< 0.001) to lower the risk to 0.69 fold (95% CI: 0.530, 0.908) than RR . Also the gender still has no significant gender effect on patients' survival status. Overall the model performance does not get obviously improved in model cox2 (AIC = 2338.5), of which AIC decreased, comparing to the baseline value model cox1 (AIC = 2284.5).
+
+```{r}
+rbind(glance1, glance2) %>% 
+  tibble() %>%
+  rownames_to_column("model") %>%
+  mutate(model = c("cox1", "cox2")) %>%
+  dplyr::select(model, AIC, BIC, logLik) %>%
+  knitr::kable("simple", align = "c")
+
 ```
 
 \newpage
 
 ### c. bootstrap
-* compute the standard errors for Cox component of the two-stage model
-* the differences from the standard errors estimated in the model2? 
-* reasons of differences between two methods for inference?
 
-For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. 
-Hence, there will be a bias for the implementation that remove all the measurement errors for unbiased predictors, which produce biased results by empirical Bayesian estimates from random effects. The partial likelihood asymptotic feature will no hold anymore. Hence the bootstrapping results have smaller standard errors and confidence interval.
+-   compute the standard errors for Cox component of the two-stage model
+-   the differences from the standard errors estimated in the model2?
+-   reasons of differences between two methods for inference?
+
+Overall the two-stage model results is pretty closed to the boostrap results. For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. It will not take the error terms from the first mixed model to the survival model. Hence by using the assumed real endogenous biomarker level, the method will underestimate the standard error for the coefficient.
+
+Hence, there will be a bias for the implementation that remove all the measurement errors then predicted by empirical Bayesian; also the partial likelihood asymptotic feature will no hold anymore. Therefor the bootstrapping results should be more reliable and less biased, and larger standard errors ( difference below 0.0010) and confidence interval on the endogenous time-dependent variable.
 
 ```{r message=FALSE, warning=FALSE}
-set.seed(555)
+set.seed(55555)
 
 #' get_coef() to extract the coef from one bootstrap
 #'
@@ -271,48 +289,64 @@ set.seed(555)
 #' get_coef(aort1, 1)
 get_coef <- function(data, indices) {
   data1 <- data %>%
+    ## put all the same id in one group
     group_by(id) %>%
+    ## put the data frame in the tibble
     nest() %>%
+    ## just make sure nested
     as.data.frame() 
+  
+  ## resample 500 id for data2
   index <- sample(1:nrow(data1), 
                   size = nrow(data1), 
                   replace =TRUE)
+  ## get the new dataset
   data2 <- data1[index, ] %>%
-    unnest()
+    ## remove the old id 
+    select(-id) %>% 
+    ## build up the new id
+    rownames_to_column("id") %>% 
+    unnest() 
+  
+  ## longitudinal model for two stage
   lmm <- lme(sqrt_aort_grad ~ 
                oper + sex + tstart, 
              random = (~ 1 + tstart | id),
              data = data2)
   data2$sqrt_aort_pred <- c(predict(lmm))
+  ## survival model for two stage
   fit1 <- coxph(survobj ~ 
                   oper + sex + sqrt_aort_pred, 
                data = data2)
+  
+  ## the coef from two stage as tibble
   return(coef(fit1))
 }
 
 ## bootstrapping takes too long time
-## load .Rdata file to see the result directly
-# cox_boot <- 
+# load .Rdata file to see the result directly
+# cox_boot <-
 #   ## repeat 1000 times coxph
-#   map_df(.x = 1:1000, 
+#   map_df(.x = 1:1000,
 #          .f = ~get_coef(
 #            data = aort1,
 #            indices = .x))
-#            
+
 # save(cox_boot, file = "cox_boot_20210207.Rdata")
 
 ## upload the .Rdata for convinence
 load("cox_boot_20210207.Rdata")
 ```
----
+
+------------------------------------------------------------------------
 
 ```{r}
 tidy(cox2) %>%
   mutate(boot.estimate = as.numeric(map(cox_boot, mean)),
          boot.std.error = as.numeric(map(cox_boot, sd))) %>%
-  select(term, estimate, boot.estimate,
+  dplyr::select(term, estimate, boot.estimate,
          std.error, boot.std.error) %>%
-  knitr::kable()
+  knitr::kable("simple", align = "c")
 ```
 
 ```{r eval=FALSE, include=FALSE}
@@ -342,7 +376,7 @@ tidy(cox2) %>%
 # 
 ## extract the final results
 # boot1 <- map_df(.x = 1:3, 
-#                 ~ get_boot(cox_boots, 
+#                 ~get_boot(cox_boots, 
 #                 index = .x)) %>%
 #   transmute(`2.5 %` = `lower .95`,
 #             `97.5 %` = `upper .95`) %>%
@@ -362,24 +396,20 @@ tidy(cox2) %>%
 
 \newpage
 
-### d. comparision 
-* the two-stage model and the time-varying covariate model 
-* comment on any differences 
-* why these differences may exist
+### d. comparision
 
-Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error. 
+-   the two-stage model and the time-varying covariate model
+-   comment on any differences
+-   why these differences may exist
 
-The Cox extended model use step function approximation for the time dependent covariate,
-which measured without error. This may introduce bias to the estimates and standard error.\
-These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
+Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error; the two stage model can reduce bias compared to the Cox extended model. However, the overall performance of two-stage model is superior than the extended model; this might due to the individual biomarker level varies in a large range within subjects (possible larger than the between-subject variations). This information of error residual variability in the mixed model is not passed into the Cox proportional hazard model, which might cause the ill performance of two-stage model. More flex
+
+The Cox extended model use step function approximation for the time dependent covariate, assuming measured without error. This may introduce bias to the estimates and standard error. These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
 
 ```{r}
 rbind(tidy1, tidy2) %>%
-  select(model, everything()) %>%
+  dplyr::select(model, everything()) %>%
   arrange(term) %>%
   knitr::kable("simple", align = "c")
   
 ```
-
-
-
