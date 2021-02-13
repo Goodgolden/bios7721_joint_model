@@ -218,8 +218,7 @@ lme1 <- nlme::lme(sqrt_aort_grad ~
 summary(lme1)
 ```
 
-As seen in model lme1, time has a very highly significant effect on the level of aortic gradient level (p \<\< 0.001); on average, the patients will suffer an increase the subject's sqrt aortic gradient level 0.33 unit yearly. Operation type SI also has a significant effect on this biomarker, which can increase sqrt aortic gradient 0.737 unit on sqrt level compare to RR.
-
+As seen in model lme1, time has a very highly significant effect on the level of aortic gradient level (p \<\< 0.001); on average, the patients will suffer an increase the subject's sqrt aortic gradient level 0.33 unit yearly. Operation type SI also has a significant effect on this biomarker, which can increase sqrt aortic gradient 0.737 unit on sqrt level compare to RR.\
 There is some variability for each patient baseline aortic gradient level, showing as sd\_(Intercept) = 0.934, and the random linear time effects sd_slope = 0.175. The random intercept and random slope are not strongly related with each other (Corr = -0.15). We can see that the variability for within individual is still pretty high time to time.
 
 \newpage
