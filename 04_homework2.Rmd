@@ -272,8 +272,7 @@ rbind(glance1, glance2) %>%
 -   the differences from the standard errors estimated in the model2?
 -   reasons of differences between two methods for inference?
 
-Overall the two-stage model results is pretty closed to the boostrap results. For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. It will not take the error terms from the first mixed model to the survival model. Hence by using the assumed real endogenous biomarker level, the method will underestimate the standard error for the coefficient.
-
+Overall the two-stage model results is pretty closed to the boostrap results. For two-stage model, the estimates are obtained by fitting the corresponding mixed model using the observed responses up to given time from all subjects still at risk. It will not take the error terms from the first mixed model to the survival model. Hence by using the assumed real endogenous biomarker level, the method will underestimate the standard error for the coefficient.\
 Hence, there will be a bias for the implementation that remove all the measurement errors then predicted by empirical Bayesian; also the partial likelihood asymptotic feature will no hold anymore. Therefor the bootstrapping results should be more reliable and less biased, and larger standard errors ( difference below 0.0010) and confidence interval on the endogenous time-dependent variable.
 
 ```{r message=FALSE, warning=FALSE}
@@ -401,9 +400,8 @@ tidy(cox2) %>%
 -   comment on any differences
 -   why these differences may exist
 
-Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error; the two stage model can reduce bias compared to the Cox extended model. However, the overall performance of two-stage model is superior than the extended model; this might due to the individual biomarker level varies in a large range within subjects (possible larger than the between-subject variations). This information of error residual variability in the mixed model is not passed into the Cox proportional hazard model, which might cause the ill performance of two-stage model. More flex
-
-The Cox extended model uses step function approximation for the time dependent covariate, assuming measured without error. This may introduce bias to the estimates and standard error. These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the meansurement error.
+Overall these two models are pretty similar to each other. Comparatively, the two-stage model has smaller estimate value and larger standard error; the two stage model can reduce bias compared to the Cox extended model. However, the overall performance of two-stage model is superior than the extended model; this might due to the individual biomarker level varies in a large range within subjects (possible larger than the between-subject variations). This information of error residual variability in the mixed model is not passed into the Cox proportional hazard model, which might cause the ill performance of two-stage model. More flexible functions like polynomial or spline can improve the performance for the two-stage model.\
+The Cox extended model uses step function approximation for the time dependent covariate, assuming measured without error. This may introduce bias to the estimates and standard error. These difference demonstrate the attenuation in the regression coefficients of the cox analysis due to the measurement error.
 
 ```{r}
 rbind(tidy1, tidy2) %>%
